@@ -7,7 +7,7 @@ EmoteControl = EmoteControl or SpeakinLite or {}
 SpeakinLite = EmoteControl
 local addon = EmoteControl
 
-addon.VERSION = "0.9.2"
+addon.VERSION = "0.9.3"
 addon.DB_VERSION = 2
 
 local frame = CreateFrame("Frame")
@@ -29,7 +29,7 @@ end
 function addon:ApplyRecommendedDefaults(db)
   if type(db) ~= "table" then return end
   db.enabled = true
-  db.channel = "SELF"
+  db.channel = "EMOTE"
   db.fallbackToSelf = true
   db.globalCooldown = 6
   db.rotationProtection = "MEDIUM"
@@ -1047,6 +1047,8 @@ function addon:GetAvailablePackAddOns()
           packType = packType,
           classTag = classTag,
           raceTag = raceTag,
+          reason = reason,
+          security = security,
         }
       end
     end
@@ -1061,13 +1063,15 @@ function addon:GetPackDescriptors()
 
   for id, pack in pairs(addon.Packs or {}) do
     local info = available[id]
-    descriptors[id] = {
+      descriptors[id] = {
       id = id,
       name = pack.name or (info and info.title) or id,
       addonName = info and info.addonName,
       loaded = true,
       loadable = info and info.loadable,
       available = true,
+        reason = info and info.reason,
+        security = info and info.security,
     }
   end
 
@@ -1080,11 +1084,15 @@ function addon:GetPackDescriptors()
         loaded = info.loaded,
         loadable = info.loadable,
         available = true,
+        reason = info.reason,
+        security = info.security,
       }
     else
       descriptors[id].loaded = info.loaded or descriptors[id].loaded
       descriptors[id].loadable = info.loadable
       descriptors[id].addonName = descriptors[id].addonName or info.addonName
+      descriptors[id].reason = descriptors[id].reason or info.reason
+      descriptors[id].security = descriptors[id].security or info.security
     end
   end
 
@@ -1093,6 +1101,11 @@ function addon:GetPackDescriptors()
     table.insert(list, v)
   end
   table.sort(list, function(a, b)
+    local aLoaded = a.loaded and 1 or 0
+    local bLoaded = b.loaded and 1 or 0
+    if aLoaded ~= bLoaded then
+      return aLoaded > bLoaded
+    end
     return (a.name or a.id) < (b.name or b.id)
   end)
   return list
@@ -1563,7 +1576,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon.db = db
 
     SetDefault(db, "enabled", true)
-    SetDefault(db, "channel", "SELF")
+    SetDefault(db, "channel", "EMOTE")
     SetDefault(db, "fallbackToSelf", true)
     SetDefault(db, "globalCooldown", 6)
     SetDefault(db, "rotationProtection", "MEDIUM")
@@ -1655,6 +1668,9 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon:RebuildAndRegister()
     if type(addon.CreateSettingsPanel) == "function" then
       addon:CreateSettingsPanel()
+    end
+    if type(addon.CreatePacksSettingsPanel) == "function" then
+      addon:CreatePacksSettingsPanel()
     end
 
     if db.onboardingShown ~= true then

@@ -313,6 +313,16 @@ local function BuildPacksPanel()
   local title = MakeTitle(panel, "Emote Control Packs")
   local desc = MakePara(panel, title, "Enable or disable phrase packs. Changes apply immediately.")
 
+  local searchLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  searchLabel:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -10)
+  searchLabel:SetText("Filter")
+
+  local searchBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+  searchBox:SetSize(200, 20)
+  searchBox:SetPoint("LEFT", searchLabel, "RIGHT", 10, 0)
+  searchBox:SetAutoFocus(false)
+  searchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
   local checkboxes = {}
 
   local function Clear()
@@ -323,11 +333,21 @@ local function BuildPacksPanel()
     wipe(checkboxes)
   end
 
+  local scroll = CreateFrame("ScrollFrame", "EmoteControl_PacksScroll", panel, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", searchLabel, "BOTTOMLEFT", 0, -10)
+  scroll:SetPoint("BOTTOMRIGHT", -28, 10)
+
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(1, 1)
+  scroll:SetScrollChild(content)
+
   local function Refresh()
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     if type(theDb.packEnabled) ~= "table" then theDb.packEnabled = {} end
 
     Clear()
+
+    local filter = addon:SafeLower(searchBox:GetText() or "") or ""
 
     local sorted = {}
     if type(addon.GetPackDescriptors) == "function" then
@@ -339,7 +359,7 @@ local function BuildPacksPanel()
       table.sort(sorted, function(a, b) return a.name < b.name end)
     end
 
-    local anchor = desc
+    local y = -2
     for i, row in ipairs(sorted) do
       local label = row.name or row.id
       if row.id and row.id ~= label then
@@ -348,7 +368,17 @@ local function BuildPacksPanel()
       if row.loaded == false then
         label = label .. " (not loaded)"
       end
-      local cb = MakeCheckbox(panel, "EmoteControl_PackCB_" .. i, anchor, label, "")
+      if row.loadable == false then
+        local reason = row.reason and (" " .. tostring(row.reason)) or ""
+        label = label .. " (not loadable" .. reason .. ")"
+      end
+
+      if filter ~= "" and not addon:SafeLower(label):find(filter, 1, true) then
+        goto continue
+      end
+
+      local cb = MakeCheckbox(content, "EmoteControl_PackCB_" .. i, content, label, "")
+      cb:SetPoint("TOPLEFT", 0, y)
       cb:SetChecked(theDb.packEnabled[row.id] ~= false)
       cb:SetScript("OnClick", function(self)
         if type(addon.SetPackEnabled) == "function" then
@@ -360,12 +390,16 @@ local function BuildPacksPanel()
           end
         end
       end)
-      anchor = cb
       table.insert(checkboxes, cb)
+      y = y - 28
+      ::continue::
     end
+
+    content:SetHeight(math.max(1, (-y) + 24))
   end
 
   panel:SetScript("OnShow", Refresh)
+  searchBox:SetScript("OnTextChanged", Refresh)
   return panel
 end
 
@@ -432,9 +466,23 @@ function addon:OpenOptions()
 end
 
 function addon:OpenPacksPanel()
-  if Settings and type(Settings.OpenToCategory) == "function" and type(addon.OpenSettings) == "function" then
-    addon:OpenSettings()
-    return
+  if Settings and type(Settings.OpenToCategory) == "function" then
+    if addon._settingsPacksCategory then
+      local ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory)
+      if ok then return end
+      if addon._settingsPacksCategory.ID then
+        ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory.ID)
+        if ok then return end
+      end
+      if type(addon._settingsPacksCategory.GetID) == "function" then
+        ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory:GetID())
+        if ok then return end
+      end
+    end
+    if type(addon.OpenSettings) == "function" then
+      addon:OpenSettings()
+      return
+    end
   end
 
   if interfaceOptionsReady and InterfaceOptionsFrame_OpenToCategory then
