@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, washed away.",
         "succumbs, the tide claims them.",
         "meets their end at last.",
+        "falls, the surf swallowing the silence.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, sea-forged resilience.",
         "returns, Kul Tiran endurance.",
         "revives, the ocean provides.",
+        "stands up, salt and grit restored.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Delivering a Kul Tiran knuckle sandwich.",
         "Haymaker deployed. They'll feel that.",
         "POW! Maritime might!",
+        "Haymaker lands. That's a proper wallop.",
       },
     },
   },

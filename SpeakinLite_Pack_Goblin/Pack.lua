@@ -88,5 +88,20 @@ EmoteControl:RegisterPack({
         "Rocket protocol: go up fast.",
       },
     },
+
+    {
+      id = "goblin_rocket_barrage",
+      event = "UNIT_SPELLCAST_SUCCEEDED",
+      cooldown = 30,
+      category = "utility",
+      conditions = { unit = "player", spellName = "Rocket Barrage" },
+      messages = {
+        "Rocket Barrage! Area denial for a fee.",
+        "Launching rockets. Business is booming.",
+        "If Midnight wanted peace, wrong zip code.",
+        "Barrage engaged. Explosives on the house.",
+        "Rockets away. Profit and chaos.",
+      },
+    },
   },
 })

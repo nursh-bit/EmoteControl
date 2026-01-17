@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, survival failed this time.",
         "succumbs, desert claims another.",
         "meets their end, scrappy to the last.",
+        "falls, tail still twitching with grit.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, can't keep a good fox down.",
         "returns, the caravan needs them.",
         "revives, survivors always bounce back.",
+        "scrambles up, dusting off with a grin.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Pulling something clever from the bag.",
         "Bag of Tricks deployed. Surprises!",
         "Reaching into the bag. Vulpera ingenuity!",
+        "A trick appears. Classic vulpera.",
       },
     },
     
@@ -98,6 +101,7 @@ EmoteControl:RegisterPack({
         "Making camp. Rest and resupply.",
         "Camp deployed. Vulpera hospitality!",
         "Setting up the tent. Home away from home!",
+        "Pitching camp. The caravan pauses here.",
       },
     },
   },

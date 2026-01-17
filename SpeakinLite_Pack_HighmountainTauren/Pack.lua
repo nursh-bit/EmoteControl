@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, but the mountain remembers.",
         "succumbs, the ancestors call.",
         "meets the earth, spirit enduring.",
+        "falls, the peaks echo their passing.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, blessed by the spirits.",
         "returns, the mountain's champion.",
         "revives, steadfast as ever.",
+        "rises, the eagle's blessing renewed.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Rushing forward, unstoppable force.",
         "Bull Rush engaged. Move or be moved.",
         "Charging! Highmountain style!",
+        "Stampeding forward with ancestral power.",
       },
     },
   },

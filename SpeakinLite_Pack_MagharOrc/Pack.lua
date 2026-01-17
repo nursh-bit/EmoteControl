@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, a warrior's end.",
         "succumbs, the ancestors await.",
         "meets death as an orc should.",
+        "falls, spirit unbroken.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, unbroken spirit.",
         "returns, honor demands it.",
         "revives, Draenor endures.",
+        "awakens, strength of the clans restored.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Calling upon the ancestors.",
         "Ancestral power flows. Mag'har might!",
         "Spirits rise! Honor the old ways!",
+        "Ancestors heed the call. Power surges.",
       },
     },
   },
