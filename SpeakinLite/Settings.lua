@@ -163,6 +163,52 @@ function addon:CreateSettingsPanel()
   end)
 
   y = y - 28
+  local cbCombatLog = CreateCheckbox(panel, "Enable combat log triggers (crits, dodges, interrupts)", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableCombatLogTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  local cbLoot = CreateCheckbox(panel, "Enable loot triggers (epic/legendary drops)", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableLootTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  local cbAchievement = CreateCheckbox(panel, "Enable achievement triggers", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableAchievementTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  local cbLevelUp = CreateCheckbox(panel, "Enable level-up triggers", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableLevelUpTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 32
+  CreateLabel(panel, "Quick Setup", 16, y)
+  y = y - 22
+  local setupBtn = CreateButton(panel, "Apply Recommended Defaults", 16, y, 220, function()
+    local db = addon:GetDB() or {}
+    addon:ApplyRecommendedDefaults(db)
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+    if panel and panel:GetScript("OnShow") then
+      panel:GetScript("OnShow")(panel)
+    end
+    addon:Print("Applied recommended defaults.")
+  end)
+
+  y = y - 40
   local cbKnown = CreateCheckbox(panel, "Only announce spells you actually know", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.onlyLearnedSpells = v
@@ -256,21 +302,35 @@ function addon:CreateSettingsPanel()
     EmoteControlDB = db
     SpeakinLiteDB = EmoteControlDB
 
-    local ids = {}
-    for id, _ in pairs(addon.Packs or {}) do
-      table.insert(ids, id)
+    local list = {}
+    if type(addon.GetPackDescriptors) == "function" then
+      list = addon:GetPackDescriptors()
+    else
+      for id, _ in pairs(addon.Packs or {}) do
+        table.insert(list, { id = id, name = id, loaded = true })
+      end
+      table.sort(list, function(a, b) return a.id < b.id end)
     end
-    table.sort(ids)
 
     local py = y
-    for _, id in ipairs(ids) do
-      local label = id
+    for _, entry in ipairs(list) do
+      local label = entry.name or entry.id
+      if entry.id and entry.id ~= label then
+        label = label .. " (" .. entry.id .. ")"
+      end
+      if entry.loaded == false then
+        label = label .. " (not loaded)"
+      end
       local cb = CreateCheckbox(panel, label, 16, py, function(v)
-        local db2 = addon:GetDB() or {}
-        db2.packEnabled = db2.packEnabled or {}
-        db2.packEnabled[id] = v
-        EmoteControlDB = db2
-        SpeakinLiteDB = EmoteControlDB
+        if type(addon.SetPackEnabled) == "function" then
+          addon:SetPackEnabled(entry.id, v, entry.addonName)
+        else
+          local db2 = addon:GetDB() or {}
+          db2.packEnabled = db2.packEnabled or {}
+          db2.packEnabled[entry.id] = v
+          EmoteControlDB = db2
+          SpeakinLiteDB = EmoteControlDB
+        end
       end)
       table.insert(packChecks, cb)
       py = py - 24
@@ -320,6 +380,10 @@ function addon:CreateSettingsPanel()
     if cbEnabled then cbEnabled:SetChecked(db.enabled and true or false) end
     cbSpell:SetChecked(db.enableSpellTriggers ~= false)
     cbNonSpell:SetChecked(db.enableNonSpellTriggers ~= false)
+    cbCombatLog:SetChecked(db.enableCombatLogTriggers ~= false)
+    cbLoot:SetChecked(db.enableLootTriggers ~= false)
+    cbAchievement:SetChecked(db.enableAchievementTriggers ~= false)
+    cbLevelUp:SetChecked(db.enableLevelUpTriggers ~= false)
     cbKnown:SetChecked(db.onlyLearnedSpells ~= false)
     cbFallback:SetChecked(db.fallbackToSelf ~= false)
     SetChannel((type(db.channel) == "string" and string.upper(db.channel)) or "SELF")
