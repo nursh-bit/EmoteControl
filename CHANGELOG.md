@@ -1,5 +1,26 @@
 # Emote Control Changelog
 
+## Version 0.9.3 - Packs UX Improvements
+
+### New Features
+- Packs list now sorts loaded packs first and includes a filter box.
+- Packs list shows loadable status when a pack can't be loaded.
+- Settings main panel is scrollable and shows slider values.
+
+### Fixes & Improvements
+- Recommended default channel is now EMOTE.
+
+## Version 0.9.2 - 1.0 Readiness Pass
+
+### Fixes & Improvements
+- Fixed loot quality conditions so epic/legendary filters work correctly.
+- Reduced combat-log allocations to improve performance in busy fights.
+- Cached spell-cast trigger context to avoid duplicate work.
+- Prevented divide-by-zero in health threshold conditions.
+- Ensured editor backdrops work on Retail 10.0+ Settings API.
+- Unregistered unused dynamic events when rebuilding triggers.
+- Editor save now uses addon chat prefix.
+
 ## Version 0.8.0 - Major Feature Update
 
 ### New Features (1-4): Extended Template Variables & New Event Triggers
