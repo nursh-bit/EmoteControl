@@ -1,18 +1,16 @@
 # Emote Control Changelog
 
-## Version 0.9.2 - 1.0 Readiness Pass
+## Version 0.9.3 - Packs UX Improvements
 
 ### New Features
-- First-run onboarding opens options and prints quick setup guidance.
-- Quick setup button applies recommended defaults.
-- Pack discovery shows available-but-not-loaded packs.
-- Per-event master toggles for combat log, loot, achievements, and level-up.
-- SavedVariables versioning and migration helper added.
+- Packs list now sorts loaded packs first and includes a filter box.
+- Packs list shows loadable status when a pack can't be loaded.
+- Settings main panel is scrollable and shows slider values.
 
 ### Fixes & Improvements
-- Packs without explicit IDs now auto-derive IDs from names.
+- Recommended default channel is now EMOTE.
 
-## Version 0.9.1 - Maintenance Update
+## Version 0.9.2 - 1.0 Readiness Pass
 
 ### Fixes & Improvements
 - Fixed loot quality conditions so epic/legendary filters work correctly.
