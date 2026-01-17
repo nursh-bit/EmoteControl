@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Common Pack
+## Notes: Common non-spell triggers for SpeakinLite.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: SpeakinLite
+## LoadOnDemand: 1
+## X-SpeakinLite-PackType: Common
+
+Pack.lua

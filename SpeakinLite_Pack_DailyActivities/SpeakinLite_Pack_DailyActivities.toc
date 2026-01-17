@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Daily Activities Pack
+## Notes: Triggers for everyday WoW activities (mail, vendors, travel, etc).
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: SpeakinLite
+## LoadOnDemand: 1
+## X-SpeakinLite-PackType: Activities
+
+Pack.lua

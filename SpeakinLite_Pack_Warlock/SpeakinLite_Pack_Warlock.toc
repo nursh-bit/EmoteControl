@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Warlock Pack
+## Notes: Warlock spell phrases for SpeakinLite.
+## Author: Nursh
+## Version: 0.8.0
+## LoadOnDemand: 1
+## Dependencies: SpeakinLite
+## X-SpeakinLite-Class: WARLOCK
+
+Pack.lua
