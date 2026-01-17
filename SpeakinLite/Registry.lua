@@ -12,6 +12,13 @@ addon.TriggerById = addon.TriggerById or {}
 addon._spellIdCache = addon._spellIdCache or {}
 addon._spellNameCache = addon._spellNameCache or {}
 
+local PSEUDO_EVENTS = {
+  COMBAT_CRITICAL_HIT = true,
+  COMBAT_DODGED = true,
+  COMBAT_PARRIED = true,
+  COMBAT_INTERRUPTED = true,
+}
+
 function addon:IsPackEnabled(packId)
   if type(packId) ~= "string" or packId == "" then return true end
   local theDb = rawget(_G, "EmoteControlDB") or rawget(_G, "SpeakinLiteDB")
@@ -217,7 +224,9 @@ function addon:BuildTriggerIndex()
             table.insert(bucket.list, t)
           end
 
-          addon.EventsToRegister[t.event] = true
+          if not PSEUDO_EVENTS[t.event] then
+            addon.EventsToRegister[t.event] = true
+          end
           addon.TriggerById[t.id] = t
         end
       end
