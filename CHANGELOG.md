@@ -1,5 +1,17 @@
 # Emote Control Changelog
 
+## Version 0.9.2 - 1.0 Readiness Pass
+
+### New Features
+- First-run onboarding opens options and prints quick setup guidance.
+- Quick setup button applies recommended defaults.
+- Pack discovery shows available-but-not-loaded packs.
+- Per-event master toggles for combat log, loot, achievements, and level-up.
+- SavedVariables versioning and migration helper added.
+
+### Fixes & Improvements
+- Packs without explicit IDs now auto-derive IDs from names.
+
 ## Version 0.9.1 - Maintenance Update
 
 ### Fixes & Improvements
