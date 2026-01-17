@@ -107,6 +107,7 @@ EmoteControl:RegisterPack({
         "senses the Void's presence here.",
         "feels shadow energies swirling nearby.",
         "hears echoes from the Rift.",
+        "listens as the Void murmurs in the distance.",
       },
     },
     
@@ -122,6 +123,7 @@ EmoteControl:RegisterPack({
         "channels shadows alongside arcane power.",
         "bends space with void-touched magic.",
         "calls upon the Rift to aid their spell.",
+        "threads shadow into the portal's arcane weave.",
       },
     },
 
@@ -136,6 +138,7 @@ EmoteControl:RegisterPack({
         "smiles, the Void approves of this achievement.",
         "nods proudly, mastery recognized.",
         "stands tall, void whispers pleased.",
+        "accepts this honor, shadows curling in approval.",
       },
     },
 
@@ -150,6 +153,7 @@ EmoteControl:RegisterPack({
         "relaxes, allowing the shadows to rest.",
         "finds peace, even the Void needs respite.",
         "meditates, balancing light and shadow within.",
+        "rests, the whispers soft and distant.",
       },
     },
   },

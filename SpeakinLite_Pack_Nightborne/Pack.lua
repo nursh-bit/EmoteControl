@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, ancient magic fading.",
         "succumbs, grace lost.",
         "meets their end, the Nightwell weeps.",
+        "falls, Suramar's light dimming for a moment.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, ancient and unbroken.",
         "returns, Suramar endures.",
         "revives, refined as ever.",
+        "awakens, arcane poise restored.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Releasing ancient arcane power.",
         "Pulse deployed. Suramar style.",
         "Arcane surge! Feel the Nightwell's might.",
+        "Nightwell energy bursts forth in a pulse.",
       },
     },
   },

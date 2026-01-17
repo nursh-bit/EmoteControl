@@ -7,7 +7,7 @@ EmoteControl = EmoteControl or SpeakinLite or {}
 SpeakinLite = EmoteControl
 local addon = EmoteControl
 
-addon.VERSION = "0.9.3"
+addon.VERSION = "0.9.4"
 addon.DB_VERSION = 2
 
 local frame = CreateFrame("Frame")

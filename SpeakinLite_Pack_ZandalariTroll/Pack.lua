@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, the loa will judge.",
         "succumbs, Zandalar mourns.",
         "meets their end, regal to the last.",
+        "falls, drums of the empire fading.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, blessed by the loa.",
         "returns, the empire needs them.",
         "revives, Zandalar eternal.",
+        "stands tall, the loa's favor renewed.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Swooping down, Zandalari style.",
         "Pterrordax deployed. Ancient tactics.",
         "Flying in! The empire strikes from above!",
+        "Swooping in, wings of Zandalar.",
       },
     },
     
@@ -98,6 +101,7 @@ EmoteControl:RegisterPack({
         "Trollish regeneration engaged.",
         "Healing up, mon. The empire endures.",
         "Regeneratin' active. Can't keep us down!",
+        "Regeneratin' online. Vitality restored.",
       },
     },
   },

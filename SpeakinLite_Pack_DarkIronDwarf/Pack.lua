@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, fire fading.",
         "meets their end, but not forgotten.",
         "succumbs, the forge calls them home.",
+        "falls, embers cooling on the stone.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, reforged.",
         "returns, fire eternal.",
         "revives, Dark Iron resilience.",
+        "stands, embers glowing once more.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Burning with molten fury.",
         "Fireblood activated. Let's get hot.",
         "Flames surge. Dark Iron power!",
+        "Fireblood surges. Heat intensifies.",
       },
     },
     
@@ -98,6 +101,7 @@ EmoteControl:RegisterPack({
         "Digging a tunnel. Dark Iron engineering!",
         "Mole Machine activated. See you there!",
         "Going underground. Efficiency!",
+        "Burrowing through stone. Destination set.",
       },
     },
   },
