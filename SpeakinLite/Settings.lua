@@ -71,7 +71,16 @@ local function CreateSlider(parent, label, x, y, minVal, maxVal, step)
   if base and _G[base .. "Text"] then _G[base .. "Text"]:SetText(label) end
   if base and _G[base .. "Low"] then _G[base .. "Low"]:SetText(tostring(minVal)) end
   if base and _G[base .. "High"] then _G[base .. "High"]:SetText(tostring(maxVal)) end
+  s._label = label
   return s
+end
+
+local function SetSliderLabel(slider, value)
+  if not slider then return end
+  local base = slider:GetName()
+  if base and _G[base .. "Text"] and slider._label then
+    _G[base .. "Text"]:SetText(slider._label .. ": " .. tostring(value))
+  end
 end
 
 -- Public API: open the Settings panel.
@@ -118,6 +127,14 @@ function addon:CreateSettingsPanel()
   panel = CreateFrame("Frame")
   panel.name = "Emote Control"
 
+  local scroll = CreateFrame("ScrollFrame", nil, panel, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", panel, "TOPLEFT", 0, -8)
+  scroll:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -28, 8)
+
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(1, 1)
+  scroll:SetScrollChild(content)
+
   -- Register category
   local ok, category = pcall(Settings.RegisterCanvasLayoutCategory, panel, "Emote Control")
   if not ok or not category then
@@ -131,14 +148,15 @@ function addon:CreateSettingsPanel()
   addon._settingsCategoryId = category.ID or (type(category.GetID) == "function" and category:GetID())
 
   -- Title
-  CreateLabel(panel, "Emote Control", 16, -16, "large")
-  CreateLabel(panel, "Lightweight spell + event announcer. Packs add triggers and phrases.", 16, -40)
+  CreateLabel(content, "Emote Control", 16, -16, "large")
+  CreateLabel(content, "Lightweight spell + event announcer. Packs add triggers and phrases.", 16, -40)
+  CreateLabel(content, "Quick access: Editor and Builder are the fastest way to customize triggers.", 16, -58)
 
-  local y = -72
+  local y = -86
 
   -- Master toggles
   local cbEnabled
-  cbEnabled = CreateCheckbox(panel, "Enable Emote Control", 16, y, function(v)
+  cbEnabled = CreateCheckbox(content, "Enable Emote Control", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.enabled = v
     EmoteControlDB = db
@@ -146,7 +164,7 @@ function addon:CreateSettingsPanel()
   end)
 
   y = y - 28
-  local cbSpell = CreateCheckbox(panel, "Enable spell triggers", 16, y, function(v)
+  local cbSpell = CreateCheckbox(content, "Enable spell triggers", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.enableSpellTriggers = v
     EmoteControlDB = db
@@ -154,7 +172,7 @@ function addon:CreateSettingsPanel()
   end)
 
   y = y - 28
-  local cbNonSpell = CreateCheckbox(panel, "Enable non-spell triggers (login, death, etc.)", 16, y, function(v)
+  local cbNonSpell = CreateCheckbox(content, "Enable non-spell triggers (login, death, etc.)", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.enableNonSpellTriggers = v
     EmoteControlDB = db
@@ -162,7 +180,53 @@ function addon:CreateSettingsPanel()
   end)
 
   y = y - 28
-  local cbKnown = CreateCheckbox(panel, "Only announce spells you actually know", 16, y, function(v)
+  local cbCombatLog = CreateCheckbox(content, "Enable combat log triggers (crits, dodges, interrupts)", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableCombatLogTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  local cbLoot = CreateCheckbox(content, "Enable loot triggers (epic/legendary drops)", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableLootTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  local cbAchievement = CreateCheckbox(content, "Enable achievement triggers", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableAchievementTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  local cbLevelUp = CreateCheckbox(content, "Enable level-up triggers", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.enableLevelUpTriggers = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 32
+  CreateLabel(content, "Quick Setup", 16, y)
+  y = y - 22
+  local setupBtn = CreateButton(content, "Apply Recommended Defaults", 16, y, 220, function()
+    local db = addon:GetDB() or {}
+    addon:ApplyRecommendedDefaults(db)
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+    if panel and panel:GetScript("OnShow") then
+      panel:GetScript("OnShow")(panel)
+    end
+    addon:Print("Applied recommended defaults.")
+  end)
+
+  y = y - 40
+  local cbKnown = CreateCheckbox(content, "Only announce spells you actually know", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.onlyLearnedSpells = v
     EmoteControlDB = db
@@ -170,7 +234,7 @@ function addon:CreateSettingsPanel()
   end)
 
   y = y - 28
-  local cbFallback = CreateCheckbox(panel, "If SAY/YELL blocked outdoors, use EMOTE instead", 16, y, function(v)
+  local cbFallback = CreateCheckbox(content, "If SAY/YELL blocked outdoors, use EMOTE instead", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.fallbackToSelf = v
     EmoteControlDB = db
@@ -179,7 +243,7 @@ function addon:CreateSettingsPanel()
 
   -- Channel selection (simple radio group)
   y = y - 44
-  CreateLabel(panel, "Output Channel", 16, y)
+  CreateLabel(content, "Output Channel", 16, y)
   y = y - 22
 
   local channels = {
@@ -203,8 +267,8 @@ function addon:CreateSettingsPanel()
   end
 
   for i, ch in ipairs(channels) do
-    local r = CreateFrame("CheckButton", nil, panel, "UIRadioButtonTemplate")
-    r:SetPoint("TOPLEFT", panel, "TOPLEFT", 20, y)
+    local r = CreateFrame("CheckButton", nil, content, "UIRadioButtonTemplate")
+    r:SetPoint("TOPLEFT", content, "TOPLEFT", 20, y)
     
     -- Handle different text field names in different WoW versions
     if r.Text then
@@ -228,64 +292,62 @@ function addon:CreateSettingsPanel()
   y = y - 12
 
   -- Cooldown slider
-  local slider = CreateSlider(panel, "Global cooldown (seconds)", 16, y, 0, 60, 1)
+  local slider = CreateSlider(content, "Global cooldown (seconds)", 16, y, 0, 60, 1)
   slider:SetScript("OnValueChanged", function(self, value)
     local db = addon:GetDB() or {}
     db.globalCooldown = math.floor(value + 0.5)
     EmoteControlDB = db
     SpeakinLiteDB = EmoteControlDB
+    SetSliderLabel(self, db.globalCooldown)
   end)
 
   y = y - 60
 
   -- Packs
-  CreateLabel(panel, "Packs", 16, y)
-  CreateLabel(panel, "Enable or disable packs, then click Rebuild Trigger Index.", 16, y - 18)
+  CreateLabel(content, "Packs", 16, y)
+  CreateLabel(content, "Manage packs in the Packs submenu.", 16, y - 18)
   y = y - 44
 
-  local packChecks = {}
-  local function RebuildPackList()
-    for _, w in ipairs(packChecks) do
-      w:Hide()
+  local packsBtn = CreateButton(content, "Open Packs", 16, y, 160, function()
+    if type(addon.OpenPacksPanel) == "function" then
+      addon:OpenPacksPanel()
     end
-    wipe(packChecks)
+  end)
 
-    local db = addon:GetDB() or {}
-    db.packEnabled = db.packEnabled or {}
-    EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
-
-    local ids = {}
-    for id, _ in pairs(addon.Packs or {}) do
-      table.insert(ids, id)
-    end
-    table.sort(ids)
-
-    local py = y
-    for _, id in ipairs(ids) do
-      local label = id
-      local cb = CreateCheckbox(panel, label, 16, py, function(v)
-        local db2 = addon:GetDB() or {}
-        db2.packEnabled = db2.packEnabled or {}
-        db2.packEnabled[id] = v
-        EmoteControlDB = db2
-        SpeakinLiteDB = EmoteControlDB
-      end)
-      table.insert(packChecks, cb)
-      py = py - 24
-    end
-  end
-
-  local rebuildBtn = CreateButton(panel, "Rebuild Trigger Index", 300, y, 180, function()
+  local rebuildBtn = CreateButton(content, "Rebuild Trigger Index", 300, y, 180, function()
     if type(addon.RebuildAndRegister) == "function" then
       addon:RebuildAndRegister()
       addon:Print("Rebuilt triggers.")
     end
   end)
 
-  local testBtn = CreateButton(panel, "Test output", 300, y - 28, 180, function()
+  local testBtn = CreateButton(content, "Test output", 300, y - 28, 180, function()
     if type(addon.Output) == "function" then
       addon:Output("Testing Emote Control output from settings panel.")
+    end
+  end)
+
+  local editorBtn = CreateButton(content, "Open Trigger Editor", 16, y - 28, 180, function()
+    if type(addon.OpenEditor) == "function" then
+      addon:OpenEditor()
+    else
+      addon:Print("Editor UI not available.")
+    end
+  end)
+
+  local builderBtn = CreateButton(content, "Open Trigger Builder", 16, y - 56, 180, function()
+    if type(addon.OpenTriggerBuilder) == "function" then
+      addon:OpenTriggerBuilder()
+    else
+      addon:Print("Trigger Builder UI not available.")
+    end
+  end)
+
+  local importExportBtn = CreateButton(content, "Import / Export", 300, y - 56, 180, function()
+    if type(addon.OpenImportExportUI) == "function" then
+      addon:OpenImportExportUI()
+    else
+      addon:Print("Import/Export UI not available.")
     end
   end)
 
@@ -295,23 +357,135 @@ function addon:CreateSettingsPanel()
     if cbEnabled then cbEnabled:SetChecked(db.enabled and true or false) end
     cbSpell:SetChecked(db.enableSpellTriggers ~= false)
     cbNonSpell:SetChecked(db.enableNonSpellTriggers ~= false)
+    cbCombatLog:SetChecked(db.enableCombatLogTriggers ~= false)
+    cbLoot:SetChecked(db.enableLootTriggers ~= false)
+    cbAchievement:SetChecked(db.enableAchievementTriggers ~= false)
+    cbLevelUp:SetChecked(db.enableLevelUpTriggers ~= false)
     cbKnown:SetChecked(db.onlyLearnedSpells ~= false)
     cbFallback:SetChecked(db.fallbackToSelf ~= false)
     SetChannel((type(db.channel) == "string" and string.upper(db.channel)) or "SELF")
     slider:SetValue(tonumber(db.globalCooldown) or 6)
+    SetSliderLabel(slider, tonumber(db.globalCooldown) or 6)
 
-    RebuildPackList()
-    for _, cb in ipairs(packChecks) do
-      local id
-      if cb.Text then
-        id = cb.Text:GetText()
-      elseif cb.text then
-        id = cb.text:GetText()
-      end
-      if id then
-        local enabled = addon:IsPackEnabled(id)
-        cb:SetChecked(enabled)
-      end
-    end
   end)
+
+  content:SetHeight(math.max(1, (-y) + 120))
+end
+
+local packsPanel
+
+function addon:CreatePacksSettingsPanel()
+  if packsPanel then return end
+  if not (Settings and type(Settings.RegisterCanvasLayoutCategory) == "function" and type(Settings.RegisterAddOnCategory) == "function") then
+    return
+  end
+
+  packsPanel = CreateFrame("Frame")
+  packsPanel.name = "Packs"
+
+  local ok, category
+  if type(Settings.RegisterCanvasLayoutSubcategory) == "function" and addon._settingsCategory then
+    ok, category = pcall(Settings.RegisterCanvasLayoutSubcategory, addon._settingsCategory, packsPanel, "Packs")
+  end
+
+  if not ok or not category then
+    ok, category = pcall(Settings.RegisterCanvasLayoutCategory, packsPanel, "Emote Control - Packs")
+    if ok and category then
+      pcall(Settings.RegisterAddOnCategory, category)
+    else
+      packsPanel = nil
+      return
+    end
+  end
+
+  addon._settingsPacksCategory = category
+  addon._settingsPacksCategoryId = category.ID or (type(category.GetID) == "function" and category:GetID())
+
+  CreateLabel(packsPanel, "Emote Control - Packs", 16, -16, "large")
+  CreateLabel(packsPanel, "Enable or disable packs. Packs not loaded will load when enabled.", 16, -40)
+
+  local searchLabel = CreateLabel(packsPanel, "Filter", 16, -64)
+  local searchBox = CreateFrame("EditBox", nil, packsPanel, "InputBoxTemplate")
+  searchBox:SetSize(220, 20)
+  searchBox:SetPoint("LEFT", searchLabel, "RIGHT", 10, 0)
+  searchBox:SetAutoFocus(false)
+  searchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
+  local scroll = CreateFrame("ScrollFrame", nil, packsPanel, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", packsPanel, "TOPLEFT", 16, -92)
+  scroll:SetPoint("BOTTOMRIGHT", packsPanel, "BOTTOMRIGHT", -30, 16)
+
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(1, 1)
+  scroll:SetScrollChild(content)
+
+  local checkboxes = {}
+  local function Clear()
+    for _, cb in ipairs(checkboxes) do
+      cb:Hide()
+      cb:SetParent(nil)
+    end
+    wipe(checkboxes)
+  end
+
+  local function Refresh()
+    local db = addon:GetDB() or {}
+    db.packEnabled = db.packEnabled or {}
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+
+    Clear()
+
+    local filter = addon:SafeLower(searchBox:GetText() or "") or ""
+
+    local list = {}
+    if type(addon.GetPackDescriptors) == "function" then
+      list = addon:GetPackDescriptors()
+    else
+      for id, _ in pairs(addon.Packs or {}) do
+        table.insert(list, { id = id, name = id, loaded = true })
+      end
+      table.sort(list, function(a, b) return a.id < b.id end)
+    end
+
+    local y = -6
+    for _, entry in ipairs(list) do
+      local label = entry.name or entry.id
+      if entry.id and entry.id ~= label then
+        label = label .. " (" .. entry.id .. ")"
+      end
+      if entry.loaded == false then
+        label = label .. " (not loaded)"
+      end
+      if entry.loadable == false then
+        local reason = entry.reason and (" " .. tostring(entry.reason)) or ""
+        label = label .. " (not loadable" .. reason .. ")"
+      end
+
+      if filter ~= "" and not addon:SafeLower(label):find(filter, 1, true) then
+        goto continue
+      end
+
+      local cb = CreateCheckbox(content, label, 0, y, function(v)
+        if type(addon.SetPackEnabled) == "function" then
+          addon:SetPackEnabled(entry.id, v, entry.addonName)
+        else
+          local db2 = addon:GetDB() or {}
+          db2.packEnabled = db2.packEnabled or {}
+          db2.packEnabled[entry.id] = v
+          EmoteControlDB = db2
+          SpeakinLiteDB = EmoteControlDB
+        end
+      end)
+      cb:SetChecked(db.packEnabled[entry.id] ~= false)
+      table.insert(checkboxes, cb)
+      y = y - 24
+      ::continue::
+    end
+
+    content:SetHeight(math.max(1, (-y) + 24))
+  end
+
+  packsPanel:SetScript("OnShow", Refresh)
+  searchBox:SetScript("OnTextChanged", Refresh)
 end
