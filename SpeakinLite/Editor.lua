@@ -67,6 +67,7 @@ local function PrettyLabel(trig)
 end
 
 local function MakeBackdrop(f)
+  if not (f and f.SetBackdrop) then return end
   f:SetBackdrop({
     bgFile = "Interface/Tooltips/UI-Tooltip-Background",
     edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
@@ -168,7 +169,7 @@ function addon:OpenEditor()
   end
 
   if not frame then
-    frame = CreateFrame("Frame", "EmoteControlEditorFrame", UIParent)
+    frame = CreateFrame("Frame", "EmoteControlEditorFrame", UIParent, "BackdropTemplate")
     frame:SetSize(840, 520)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
@@ -199,7 +200,7 @@ function addon:OpenEditor()
     end)
     frame.searchBox = searchBox
 
-    local leftPane = CreateFrame("Frame", nil, frame)
+    local leftPane = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     leftPane:SetPoint("TOPLEFT", searchLabel, "BOTTOMLEFT", 0, -10)
     leftPane:SetSize(380, 420)
     MakeBackdrop(leftPane)
@@ -243,7 +244,7 @@ function addon:OpenEditor()
       frame.rows[i] = row
     end
 
-    local rightPane = CreateFrame("Frame", nil, frame)
+    local rightPane = CreateFrame("Frame", nil, frame, "BackdropTemplate")
     rightPane:SetPoint("TOPLEFT", leftPane, "TOPRIGHT", 12, 0)
     rightPane:SetPoint("BOTTOMRIGHT", -16, 16)
     MakeBackdrop(rightPane)
@@ -295,7 +296,7 @@ function addon:OpenEditor()
     msgLabel:SetPoint("TOPLEFT", channelDD, "BOTTOMLEFT", 16, -12)
     msgLabel:SetText("Phrases (one per line)")
 
-    local boxFrame = CreateFrame("Frame", nil, rightPane)
+    local boxFrame = CreateFrame("Frame", nil, rightPane, "BackdropTemplate")
     boxFrame:SetPoint("TOPLEFT", msgLabel, "BOTTOMLEFT", 0, -6)
     boxFrame:SetPoint("BOTTOMRIGHT", -10, 54)
     MakeBackdrop(boxFrame)
@@ -350,7 +351,7 @@ function addon:OpenEditor()
         ov.messages = nil
       end
 
-      print("EmoteControl: saved override for " .. selectedId)
+      addon:Print("Saved override for " .. selectedId)
       RefreshDetails()
     end)
 
