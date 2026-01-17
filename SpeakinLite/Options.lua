@@ -334,6 +334,17 @@ local interfaceOptionsReady = TryLoadInterfaceOptions()
 if interfaceOptionsReady then
   pcall(InterfaceOptions_AddCategory, mainPanel)
   pcall(InterfaceOptions_AddCategory, packsPanel)
+
+  -- Legacy alias so users can still find "SpeakinLite" in options
+  local legacyPanel = CreateFrame("Frame")
+  legacyPanel.name = "SpeakinLite"
+  legacyPanel:SetScript("OnShow", function()
+    if InterfaceOptionsFrame_OpenToCategory then
+      InterfaceOptionsFrame_OpenToCategory(mainPanel)
+      InterfaceOptionsFrame_OpenToCategory(mainPanel)
+    end
+  end)
+  pcall(InterfaceOptions_AddCategory, legacyPanel)
 end
 
 function addon:OpenOptions()
