@@ -1257,11 +1257,12 @@ local function HandleSlash(msg)
   PrintHelp()
 end
 
-SLASH_EMOTECONTROL1 = "/sl"
-SLASH_EMOTECONTROL2 = "/emotecontrol"
+SLASH_EMOTECONTROL1 = "/emotecontrol"
+SLASH_EMOTECONTROL2 = "/ec"
 SlashCmdList["EMOTECONTROL"] = HandleSlash
 
-SLASH_SPEAKINLITE1 = "/speakinlite"
+SLASH_SPEAKINLITE1 = "/sl"
+SLASH_SPEAKINLITE2 = "/speakinlite"
 SlashCmdList["SPEAKINLITE"] = HandleSlash
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
