@@ -91,7 +91,19 @@ local function BuildMainPanel()
   local cbNonSpell = MakeCheckbox(panel, "EmoteControl_CB_NonSpell", cbSpell, "Enable non-spell triggers", "Announce combat, zone, death, spec changes, etc.")
   local cbOnlyLearned = MakeCheckbox(panel, "EmoteControl_CB_Learned", cbNonSpell, "Only announce learned spells", "Recommended On. Extra safety for edge cases.")
 
-  local catsHeader = MakeSubTitle(panel, cbOnlyLearned, "Categories")
+  local eventHeader = MakeSubTitle(panel, cbOnlyLearned, "Event Toggles")
+  local cbCombatLog = MakeCheckbox(panel, "EmoteControl_CB_CombatLog", eventHeader, "Enable combat log triggers", "Crits, dodges, parries, interrupts.")
+  local cbLoot = MakeCheckbox(panel, "EmoteControl_CB_Loot", cbCombatLog, "Enable loot triggers", "Epic/legendary drops.")
+  local cbAchievement = MakeCheckbox(panel, "EmoteControl_CB_Achievements", cbLoot, "Enable achievement triggers", "ACHIEVEMENT_EARNED.")
+  local cbLevelUp = MakeCheckbox(panel, "EmoteControl_CB_LevelUp", cbAchievement, "Enable level-up triggers", "PLAYER_LEVEL_UP.")
+
+  local setupHeader = MakeSubTitle(panel, cbLevelUp, "Quick Setup")
+  local btnDefaults = CreateFrame("Button", "EmoteControl_Btn_Defaults", panel, "UIPanelButtonTemplate")
+  btnDefaults:SetSize(200, 22)
+  btnDefaults:SetPoint("TOPLEFT", setupHeader, "BOTTOMLEFT", 0, -10)
+  btnDefaults:SetText("Apply Recommended Defaults")
+
+  local catsHeader = MakeSubTitle(panel, btnDefaults, "Categories")
   local cbCatRotation = MakeCheckbox(panel, "EmoteControl_CB_CatRotation", catsHeader, "Rotation", "Spell rotation / frequent casts")
   local cbCatUtility = MakeCheckbox(panel, "EmoteControl_CB_CatUtility", cbCatRotation, "Utility", "Summons, teleports, helpers")
   local cbCatDef = MakeCheckbox(panel, "EmoteControl_CB_CatDef", cbCatUtility, "Defensive", "Shields, immunities, mitigations")
@@ -125,6 +137,10 @@ local function BuildMainPanel()
     cbSpell:SetChecked(theDb.enableSpellTriggers ~= false)
     cbNonSpell:SetChecked(theDb.enableNonSpellTriggers ~= false)
     cbOnlyLearned:SetChecked(theDb.onlyLearnedSpells ~= false)
+    cbCombatLog:SetChecked(theDb.enableCombatLogTriggers ~= false)
+    cbLoot:SetChecked(theDb.enableLootTriggers ~= false)
+    cbAchievement:SetChecked(theDb.enableAchievementTriggers ~= false)
+    cbLevelUp:SetChecked(theDb.enableLevelUpTriggers ~= false)
 
     sCooldown:SetValue(addon:ClampNumber(tonumber(theDb.globalCooldown) or 6, 0, 60))
     sMaxPerMin:SetValue(addon:ClampNumber(tonumber(theDb.maxPerMinute) or 12, 0, 60))
@@ -169,6 +185,26 @@ local function BuildMainPanel()
   cbOnlyLearned:SetScript("OnClick", function(self)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     theDb.onlyLearnedSpells = self:GetChecked() and true or false
+  end)
+
+  cbCombatLog:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableCombatLogTriggers = self:GetChecked() and true or false
+  end)
+
+  cbLoot:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableLootTriggers = self:GetChecked() and true or false
+  end)
+
+  cbAchievement:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableAchievementTriggers = self:GetChecked() and true or false
+  end)
+
+  cbLevelUp:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableLevelUpTriggers = self:GetChecked() and true or false
   end)
 
   local function CatSetter(key)
@@ -253,6 +289,13 @@ local function BuildMainPanel()
     end
   end)
 
+  btnDefaults:SetScript("OnClick", function()
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    addon:ApplyRecommendedDefaults(theDb)
+    Refresh()
+    addon:Print("Applied recommended defaults.")
+  end)
+
   btnEditor:SetScript("OnClick", function()
     if type(addon.OpenEditor) == "function" then
       addon:OpenEditor()
@@ -287,19 +330,34 @@ local function BuildPacksPanel()
     Clear()
 
     local sorted = {}
-    for id, pack in pairs(addon.Packs or {}) do
-      table.insert(sorted, { id = id, name = (pack and pack.name) or id })
+    if type(addon.GetPackDescriptors) == "function" then
+      sorted = addon:GetPackDescriptors()
+    else
+      for id, pack in pairs(addon.Packs or {}) do
+        table.insert(sorted, { id = id, name = (pack and pack.name) or id, loaded = true })
+      end
+      table.sort(sorted, function(a, b) return a.name < b.name end)
     end
-    table.sort(sorted, function(a, b) return a.name < b.name end)
 
     local anchor = desc
     for i, row in ipairs(sorted) do
-      local cb = MakeCheckbox(panel, "EmoteControl_PackCB_" .. i, anchor, row.name .. " (" .. row.id .. ")", "")
+      local label = row.name or row.id
+      if row.id and row.id ~= label then
+        label = label .. " (" .. row.id .. ")"
+      end
+      if row.loaded == false then
+        label = label .. " (not loaded)"
+      end
+      local cb = MakeCheckbox(panel, "EmoteControl_PackCB_" .. i, anchor, label, "")
       cb:SetChecked(theDb.packEnabled[row.id] ~= false)
       cb:SetScript("OnClick", function(self)
-        theDb.packEnabled[row.id] = self:GetChecked() and true or false
-        if type(addon.BuildTriggerIndex) == "function" then
-          addon:BuildTriggerIndex()
+        if type(addon.SetPackEnabled) == "function" then
+          addon:SetPackEnabled(row.id, self:GetChecked() and true or false, row.addonName)
+        else
+          theDb.packEnabled[row.id] = self:GetChecked() and true or false
+          if type(addon.BuildTriggerIndex) == "function" then
+            addon:BuildTriggerIndex()
+          end
         end
       end)
       anchor = cb

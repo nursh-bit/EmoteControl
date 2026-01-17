@@ -25,7 +25,19 @@ end
 
 function addon:RegisterPack(pack)
   if type(pack) ~= "table" then return end
-  if type(pack.id) ~= "string" or pack.id == "" then return end
+  if type(pack.id) ~= "string" or pack.id == "" then
+    if type(pack.name) == "string" and pack.name ~= "" then
+      local fallback = addon:SafeLower(pack.name) or ""
+      fallback = fallback:gsub("%s+", ""):gsub("[^%w_]", "")
+      if fallback ~= "" then
+        pack.id = fallback
+      else
+        return
+      end
+    else
+      return
+    end
+  end
   if type(pack.triggers) ~= "table" then pack.triggers = {} end
   addon.Packs[pack.id] = pack
 end

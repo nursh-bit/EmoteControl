@@ -7,7 +7,8 @@ EmoteControl = EmoteControl or SpeakinLite or {}
 SpeakinLite = EmoteControl
 local addon = EmoteControl
 
-addon.VERSION = "0.9.1"
+addon.VERSION = "0.9.2"
+addon.DB_VERSION = 2
 
 local frame = CreateFrame("Frame")
 
@@ -17,6 +18,61 @@ addon.db = nil
 
 -- Runtime rate limiting
 addon._sentTimes = addon._sentTimes or {}
+
+local function SetDefault(tbl, key, value)
+  if type(tbl) ~= "table" then return end
+  if tbl[key] == nil then
+    tbl[key] = value
+  end
+end
+
+function addon:ApplyRecommendedDefaults(db)
+  if type(db) ~= "table" then return end
+  db.enabled = true
+  db.channel = "SELF"
+  db.fallbackToSelf = true
+  db.globalCooldown = 6
+  db.rotationProtection = "MEDIUM"
+  db.maxPerMinute = 8
+  db.enableSpellTriggers = true
+  db.enableNonSpellTriggers = true
+  db.onlyLearnedSpells = true
+  db.enableCombatLogTriggers = false
+  db.enableLootTriggers = true
+  db.enableAchievementTriggers = true
+  db.enableLevelUpTriggers = true
+end
+
+function addon:ApplyMigrations(db)
+  if type(db) ~= "table" then return end
+  local v = tonumber(db.version) or 0
+
+  if v < 1 then
+    v = 1
+  end
+
+  if v < 2 then
+    SetDefault(db, "enableCombatLogTriggers", true)
+    SetDefault(db, "enableLootTriggers", true)
+    SetDefault(db, "enableAchievementTriggers", true)
+    SetDefault(db, "enableLevelUpTriggers", true)
+    v = 2
+  end
+
+  db.version = v
+end
+
+function addon:ShowOnboarding()
+  addon:Print("Welcome! Use /sl options for quick setup and pack selection.")
+  addon:Print("Tip: Try SELF channel with 6s cooldown and 8/min for low spam.")
+
+  if type(addon.OpenOptions) == "function" then
+    local inCombat = (type(InCombatLockdown) == "function") and InCombatLockdown()
+    if not inCombat then
+      pcall(addon.OpenOptions, addon)
+    end
+  end
+end
 
 local SendChat = (C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" and C_ChatInfo.SendChatMessage) or SendChatMessage
 local CanChatSend = (C_ChatInfo and type(C_ChatInfo.CanChatMessageBeSent) == "function" and C_ChatInfo.CanChatMessageBeSent) or nil
@@ -885,6 +941,183 @@ function addon:LoadPacksForPlayer()
   end
 end
 
+local function NormalizePackIdFromAddonName(name)
+  if type(name) ~= "string" then return nil end
+  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
+  for _, prefix in ipairs(prefixes) do
+    if string.sub(name, 1, #prefix) == prefix then
+      name = string.sub(name, #prefix + 1)
+      break
+    end
+  end
+  name = addon:SafeLower(name) or name
+  name = name:gsub("%s+", ""):gsub("[^%w_]", "")
+  if name == "" then return nil end
+  return name
+end
+
+function addon:GetAvailablePackAddOns()
+  local packs = {}
+
+  local function GetNum()
+    if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
+      return C_AddOns.GetNumAddOns()
+    end
+    if type(GetNumAddOns) == "function" then
+      return GetNumAddOns()
+    end
+    return 0
+  end
+
+  local function GetInfo(i)
+    if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
+      return C_AddOns.GetAddOnInfo(i)
+    end
+    if type(GetAddOnInfo) == "function" then
+      return GetAddOnInfo(i)
+    end
+    return nil
+  end
+
+  local function GetMeta(addonName, field)
+    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
+      return C_AddOns.GetAddOnMetadata(addonName, field)
+    end
+    if type(GetAddOnMetadata) == "function" then
+      return GetAddOnMetadata(addonName, field)
+    end
+    return nil
+  end
+
+  local function IsLoaded(addonName)
+    if C_AddOns and type(C_AddOns.IsAddOnLoaded) == "function" then
+      return C_AddOns.IsAddOnLoaded(addonName)
+    end
+    if type(IsAddOnLoaded) == "function" then
+      return IsAddOnLoaded(addonName)
+    end
+    return false
+  end
+
+  local function HasPackPrefix(name)
+    if type(name) ~= "string" then return false end
+    local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
+    for _, prefix in ipairs(prefixes) do
+      if string.sub(name, 1, #prefix) == prefix then
+        return true
+      end
+    end
+    return false
+  end
+
+  local n = GetNum()
+  for i = 1, n do
+    local name, title, notes, loadable, reason, security = GetInfo(i)
+    if type(name) == "string" and HasPackPrefix(name) then
+      local packType = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+      )
+      local classTag = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+      )
+      local raceTag = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+      )
+      local packId = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-PackId") or GetMeta(name, "X-SpeakinLite-PackId")
+      )
+
+      if not packId or packId == "" then
+        if packType == "race" and raceTag then
+          packId = "race_" .. raceTag
+        elseif classTag then
+          packId = classTag
+        else
+          packId = NormalizePackIdFromAddonName(name)
+        end
+      end
+
+      if packId then
+        packs[packId] = {
+          id = packId,
+          addonName = name,
+          title = title or name,
+          loadable = loadable,
+          loaded = IsLoaded(name),
+          packType = packType,
+          classTag = classTag,
+          raceTag = raceTag,
+        }
+      end
+    end
+  end
+
+  return packs
+end
+
+function addon:GetPackDescriptors()
+  local descriptors = {}
+  local available = addon:GetAvailablePackAddOns()
+
+  for id, pack in pairs(addon.Packs or {}) do
+    local info = available[id]
+    descriptors[id] = {
+      id = id,
+      name = pack.name or (info and info.title) or id,
+      addonName = info and info.addonName,
+      loaded = true,
+      loadable = info and info.loadable,
+      available = true,
+    }
+  end
+
+  for id, info in pairs(available) do
+    if not descriptors[id] then
+      descriptors[id] = {
+        id = id,
+        name = info.title or info.addonName or id,
+        addonName = info.addonName,
+        loaded = info.loaded,
+        loadable = info.loadable,
+        available = true,
+      }
+    else
+      descriptors[id].loaded = info.loaded or descriptors[id].loaded
+      descriptors[id].loadable = info.loadable
+      descriptors[id].addonName = descriptors[id].addonName or info.addonName
+    end
+  end
+
+  local list = {}
+  for _, v in pairs(descriptors) do
+    table.insert(list, v)
+  end
+  table.sort(list, function(a, b)
+    return (a.name or a.id) < (b.name or b.id)
+  end)
+  return list
+end
+
+function addon:SetPackEnabled(packId, enabled, addonName)
+  local theDb = addon:GetDB() or {}
+  theDb.packEnabled = theDb.packEnabled or {}
+  theDb.packEnabled[packId] = enabled and true or false
+  EmoteControlDB = theDb
+  SpeakinLiteDB = EmoteControlDB
+
+  if enabled and addonName then
+    if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
+      pcall(C_AddOns.LoadAddOn, addonName)
+    elseif type(LoadAddOn) == "function" then
+      pcall(LoadAddOn, addonName)
+    end
+  end
+
+  if type(addon.RebuildAndRegister) == "function" then
+    addon:RebuildAndRegister()
+  end
+end
+
 function addon:RebuildAndRegister()
   if type(addon.BuildTriggerIndex) == "function" then
     addon:BuildTriggerIndex()
@@ -938,6 +1171,19 @@ function addon:HandleEvent(eventName, ...)
     if db.enableSpellTriggers == false then return end
   else
     if db.enableNonSpellTriggers == false then return end
+  end
+
+  if eventName == "COMBAT_LOG_EVENT_UNFILTERED" and db.enableCombatLogTriggers == false then
+    return
+  end
+  if (eventName == "CHAT_MSG_LOOT" or eventName == "LOOT_READY") and db.enableLootTriggers == false then
+    return
+  end
+  if eventName == "ACHIEVEMENT_EARNED" and db.enableAchievementTriggers == false then
+    return
+  end
+  if eventName == "PLAYER_LEVEL_UP" and db.enableLevelUpTriggers == false then
+    return
   end
 
   local bucket = addon.TriggersByEvent and addon.TriggersByEvent[eventName]
@@ -1155,6 +1401,10 @@ local function HandleSlash(msg)
     addon:Print("Fallback to Self: " .. tostring(db and db.fallbackToSelf))
     addon:Print("Spell triggers: " .. tostring(db and db.enableSpellTriggers))
     addon:Print("Non-spell triggers: " .. tostring(db and db.enableNonSpellTriggers))
+    addon:Print("Combat log triggers: " .. tostring(db and db.enableCombatLogTriggers))
+    addon:Print("Loot triggers: " .. tostring(db and db.enableLootTriggers))
+    addon:Print("Achievement triggers: " .. tostring(db and db.enableAchievementTriggers))
+    addon:Print("Level-up triggers: " .. tostring(db and db.enableLevelUpTriggers))
     addon:Print("Only learned spells: " .. tostring(db and db.onlyLearnedSpells))
     addon:Print("Rotation protection: " .. tostring(db and db.rotationProtection))
     addon:Print("Global cooldown: " .. tostring(db and db.globalCooldown) .. "s")
@@ -1312,15 +1562,22 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     db = EmoteControlDB
     addon.db = db
 
-    if db.enabled == nil then db.enabled = true end
-    if type(db.channel) ~= "string" then db.channel = "SELF" end
-    if db.fallbackToSelf == nil then db.fallbackToSelf = true end
-    if type(db.globalCooldown) ~= "number" then db.globalCooldown = 6 end
-    if type(db.rotationProtection) ~= "string" then db.rotationProtection = "MEDIUM" end
-    if db.enableSpellTriggers == nil then db.enableSpellTriggers = true end
-    if db.enableNonSpellTriggers == nil then db.enableNonSpellTriggers = true end
-    if db.onlyLearnedSpells == nil then db.onlyLearnedSpells = true end
-    if type(db.maxPerMinute) ~= "number" then db.maxPerMinute = 12 end
+    SetDefault(db, "enabled", true)
+    SetDefault(db, "channel", "SELF")
+    SetDefault(db, "fallbackToSelf", true)
+    SetDefault(db, "globalCooldown", 6)
+    SetDefault(db, "rotationProtection", "MEDIUM")
+    SetDefault(db, "enableSpellTriggers", true)
+    SetDefault(db, "enableNonSpellTriggers", true)
+    SetDefault(db, "onlyLearnedSpells", true)
+    SetDefault(db, "maxPerMinute", 12)
+    SetDefault(db, "enableCombatLogTriggers", true)
+    SetDefault(db, "enableLootTriggers", true)
+    SetDefault(db, "enableAchievementTriggers", true)
+    SetDefault(db, "enableLevelUpTriggers", true)
+    SetDefault(db, "onboardingShown", false)
+    SetDefault(db, "version", addon.DB_VERSION)
+
     if type(db.packEnabled) ~= "table" then db.packEnabled = {} end
     if type(db.categoriesEnabled) ~= "table" then
       db.categoriesEnabled = {
@@ -1334,6 +1591,8 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       }
     end
     if type(db.triggerOverrides) ~= "table" then db.triggerOverrides = {} end
+
+    addon:ApplyMigrations(db)
     
     -- Initialize mood profile
     if type(db.moodProfile) ~= "string" then
@@ -1396,6 +1655,11 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon:RebuildAndRegister()
     if type(addon.CreateSettingsPanel) == "function" then
       addon:CreateSettingsPanel()
+    end
+
+    if db.onboardingShown ~= true then
+      db.onboardingShown = true
+      addon:ShowOnboarding()
     end
 
     addon:Print("Emote Control loaded. /sl help")
