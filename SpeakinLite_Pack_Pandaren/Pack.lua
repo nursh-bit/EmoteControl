@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, balance lost.",
         "succumbs, returning to the earth.",
         "meets their end with dignity.",
+        "falls softly, lesson learned.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, resilient as bamboo.",
         "returns, balance requires it.",
         "revives, the journey must continue.",
+        "stands, calm strength renewed.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Delivering a stunning blow. Martial arts!",
         "Quaking Palm deployed. Sleep now.",
         "Chi strike! Feel the earth shake!",
+        "Palm strike lands. Tranquility restored.",
       },
     },
     
@@ -99,6 +102,7 @@ EmoteControl:RegisterPack({
         "savors the food, culinary appreciation.",
         "eats contentedly, food brings joy.",
         "enjoys the feast, life's simple pleasures.",
+        "takes a mindful bite, savoring the moment.",
       },
     },
   },

@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "succumbs, faith unbroken.",
         "collapses, yet still blessed.",
         "meets their end, Light eternal.",
+        "falls, their light dimming but not gone.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, blessed and unbroken.",
         "returns, the Naaru's champion.",
         "revives, Light renewed.",
+        "awakens, brilliance restored.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Calling down the Light's wrath.",
         "Judgment deployed. The Light condemns.",
         "Holy strike incoming. Justice served.",
+        "Judgment falls. Lightforged justice delivered.",
       },
     },
   },

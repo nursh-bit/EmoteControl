@@ -17,6 +17,13 @@ local PSEUDO_EVENTS = {
   COMBAT_DODGED = true,
   COMBAT_PARRIED = true,
   COMBAT_INTERRUPTED = true,
+  BAG_FULL = true,
+  REPAIR_NEEDED = true,
+}
+
+local EVENT_ALIAS = {
+  BAG_FULL = "UI_ERROR_MESSAGE",
+  REPAIR_NEEDED = "UPDATE_INVENTORY_DURABILITY",
 }
 
 function addon:IsPackEnabled(packId)
@@ -205,11 +212,23 @@ function addon:BuildTriggerIndex()
           local cond = t.conditions or {}
           local spellID = cond.spellID
           local spellName = cond.spellName or cond.spell
-          if not spellID and spellName then
+          if not spellID and spellName and type(spellName) == "string" then
             spellID = addon:ResolveSpellID(spellName)
           end
           t._spellID = spellID
-          t._spellNameLower = addon:SafeLower(spellName)
+          if type(spellName) == "string" then
+            t._spellNameLower = addon:SafeLower(spellName)
+          elseif type(spellName) == "table" then
+            local list = {}
+            for _, v in ipairs(spellName) do
+              if type(v) == "string" then
+                table.insert(list, addon:SafeLower(v))
+              end
+            end
+            if #list > 0 then
+              t._spellNameLowerList = list
+            end
+          end
 
           local bucket = addon.TriggersByEvent[t.event]
           if not bucket then
@@ -224,7 +243,10 @@ function addon:BuildTriggerIndex()
             table.insert(bucket.list, t)
           end
 
-          if not PSEUDO_EVENTS[t.event] then
+          local alias = EVENT_ALIAS[t.event]
+          if alias then
+            addon.EventsToRegister[alias] = true
+          elseif not PSEUDO_EVENTS[t.event] then
             addon.EventsToRegister[t.event] = true
           end
           addon.TriggerById[t.id] = t
