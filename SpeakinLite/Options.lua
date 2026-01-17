@@ -91,7 +91,19 @@ local function BuildMainPanel()
   local cbNonSpell = MakeCheckbox(panel, "EmoteControl_CB_NonSpell", cbSpell, "Enable non-spell triggers", "Announce combat, zone, death, spec changes, etc.")
   local cbOnlyLearned = MakeCheckbox(panel, "EmoteControl_CB_Learned", cbNonSpell, "Only announce learned spells", "Recommended On. Extra safety for edge cases.")
 
-  local catsHeader = MakeSubTitle(panel, cbOnlyLearned, "Categories")
+  local eventHeader = MakeSubTitle(panel, cbOnlyLearned, "Event Toggles")
+  local cbCombatLog = MakeCheckbox(panel, "EmoteControl_CB_CombatLog", eventHeader, "Enable combat log triggers", "Crits, dodges, parries, interrupts.")
+  local cbLoot = MakeCheckbox(panel, "EmoteControl_CB_Loot", cbCombatLog, "Enable loot triggers", "Epic/legendary drops.")
+  local cbAchievement = MakeCheckbox(panel, "EmoteControl_CB_Achievements", cbLoot, "Enable achievement triggers", "ACHIEVEMENT_EARNED.")
+  local cbLevelUp = MakeCheckbox(panel, "EmoteControl_CB_LevelUp", cbAchievement, "Enable level-up triggers", "PLAYER_LEVEL_UP.")
+
+  local setupHeader = MakeSubTitle(panel, cbLevelUp, "Quick Setup")
+  local btnDefaults = CreateFrame("Button", "EmoteControl_Btn_Defaults", panel, "UIPanelButtonTemplate")
+  btnDefaults:SetSize(200, 22)
+  btnDefaults:SetPoint("TOPLEFT", setupHeader, "BOTTOMLEFT", 0, -10)
+  btnDefaults:SetText("Apply Recommended Defaults")
+
+  local catsHeader = MakeSubTitle(panel, btnDefaults, "Categories")
   local cbCatRotation = MakeCheckbox(panel, "EmoteControl_CB_CatRotation", catsHeader, "Rotation", "Spell rotation / frequent casts")
   local cbCatUtility = MakeCheckbox(panel, "EmoteControl_CB_CatUtility", cbCatRotation, "Utility", "Summons, teleports, helpers")
   local cbCatDef = MakeCheckbox(panel, "EmoteControl_CB_CatDef", cbCatUtility, "Defensive", "Shields, immunities, mitigations")
@@ -125,6 +137,10 @@ local function BuildMainPanel()
     cbSpell:SetChecked(theDb.enableSpellTriggers ~= false)
     cbNonSpell:SetChecked(theDb.enableNonSpellTriggers ~= false)
     cbOnlyLearned:SetChecked(theDb.onlyLearnedSpells ~= false)
+    cbCombatLog:SetChecked(theDb.enableCombatLogTriggers ~= false)
+    cbLoot:SetChecked(theDb.enableLootTriggers ~= false)
+    cbAchievement:SetChecked(theDb.enableAchievementTriggers ~= false)
+    cbLevelUp:SetChecked(theDb.enableLevelUpTriggers ~= false)
 
     sCooldown:SetValue(addon:ClampNumber(tonumber(theDb.globalCooldown) or 6, 0, 60))
     sMaxPerMin:SetValue(addon:ClampNumber(tonumber(theDb.maxPerMinute) or 12, 0, 60))
@@ -169,6 +185,26 @@ local function BuildMainPanel()
   cbOnlyLearned:SetScript("OnClick", function(self)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     theDb.onlyLearnedSpells = self:GetChecked() and true or false
+  end)
+
+  cbCombatLog:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableCombatLogTriggers = self:GetChecked() and true or false
+  end)
+
+  cbLoot:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableLootTriggers = self:GetChecked() and true or false
+  end)
+
+  cbAchievement:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableAchievementTriggers = self:GetChecked() and true or false
+  end)
+
+  cbLevelUp:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.enableLevelUpTriggers = self:GetChecked() and true or false
   end)
 
   local function CatSetter(key)
@@ -253,6 +289,13 @@ local function BuildMainPanel()
     end
   end)
 
+  btnDefaults:SetScript("OnClick", function()
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    addon:ApplyRecommendedDefaults(theDb)
+    Refresh()
+    addon:Print("Applied recommended defaults.")
+  end)
+
   btnEditor:SetScript("OnClick", function()
     if type(addon.OpenEditor) == "function" then
       addon:OpenEditor()
@@ -270,6 +313,16 @@ local function BuildPacksPanel()
   local title = MakeTitle(panel, "Emote Control Packs")
   local desc = MakePara(panel, title, "Enable or disable phrase packs. Changes apply immediately.")
 
+  local searchLabel = panel:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+  searchLabel:SetPoint("TOPLEFT", desc, "BOTTOMLEFT", 0, -10)
+  searchLabel:SetText("Filter")
+
+  local searchBox = CreateFrame("EditBox", nil, panel, "InputBoxTemplate")
+  searchBox:SetSize(200, 20)
+  searchBox:SetPoint("LEFT", searchLabel, "RIGHT", 10, 0)
+  searchBox:SetAutoFocus(false)
+  searchBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+
   local checkboxes = {}
 
   local function Clear()
@@ -280,34 +333,73 @@ local function BuildPacksPanel()
     wipe(checkboxes)
   end
 
+  local scroll = CreateFrame("ScrollFrame", "EmoteControl_PacksScroll", panel, "UIPanelScrollFrameTemplate")
+  scroll:SetPoint("TOPLEFT", searchLabel, "BOTTOMLEFT", 0, -10)
+  scroll:SetPoint("BOTTOMRIGHT", -28, 10)
+
+  local content = CreateFrame("Frame", nil, scroll)
+  content:SetSize(1, 1)
+  scroll:SetScrollChild(content)
+
   local function Refresh()
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     if type(theDb.packEnabled) ~= "table" then theDb.packEnabled = {} end
 
     Clear()
 
-    local sorted = {}
-    for id, pack in pairs(addon.Packs or {}) do
-      table.insert(sorted, { id = id, name = (pack and pack.name) or id })
-    end
-    table.sort(sorted, function(a, b) return a.name < b.name end)
+    local filter = addon:SafeLower(searchBox:GetText() or "") or ""
 
-    local anchor = desc
+    local sorted = {}
+    if type(addon.GetPackDescriptors) == "function" then
+      sorted = addon:GetPackDescriptors()
+    else
+      for id, pack in pairs(addon.Packs or {}) do
+        table.insert(sorted, { id = id, name = (pack and pack.name) or id, loaded = true })
+      end
+      table.sort(sorted, function(a, b) return a.name < b.name end)
+    end
+
+    local y = -2
     for i, row in ipairs(sorted) do
-      local cb = MakeCheckbox(panel, "EmoteControl_PackCB_" .. i, anchor, row.name .. " (" .. row.id .. ")", "")
+      local label = row.name or row.id
+      if row.id and row.id ~= label then
+        label = label .. " (" .. row.id .. ")"
+      end
+      if row.loaded == false then
+        label = label .. " (not loaded)"
+      end
+      if row.loadable == false then
+        local reason = row.reason and (" " .. tostring(row.reason)) or ""
+        label = label .. " (not loadable" .. reason .. ")"
+      end
+
+      if filter ~= "" and not addon:SafeLower(label):find(filter, 1, true) then
+        goto continue
+      end
+
+      local cb = MakeCheckbox(content, "EmoteControl_PackCB_" .. i, content, label, "")
+      cb:SetPoint("TOPLEFT", 0, y)
       cb:SetChecked(theDb.packEnabled[row.id] ~= false)
       cb:SetScript("OnClick", function(self)
-        theDb.packEnabled[row.id] = self:GetChecked() and true or false
-        if type(addon.BuildTriggerIndex) == "function" then
-          addon:BuildTriggerIndex()
+        if type(addon.SetPackEnabled) == "function" then
+          addon:SetPackEnabled(row.id, self:GetChecked() and true or false, row.addonName)
+        else
+          theDb.packEnabled[row.id] = self:GetChecked() and true or false
+          if type(addon.BuildTriggerIndex) == "function" then
+            addon:BuildTriggerIndex()
+          end
         end
       end)
-      anchor = cb
       table.insert(checkboxes, cb)
+      y = y - 28
+      ::continue::
     end
+
+    content:SetHeight(math.max(1, (-y) + 24))
   end
 
   panel:SetScript("OnShow", Refresh)
+  searchBox:SetScript("OnTextChanged", Refresh)
   return panel
 end
 
@@ -334,6 +426,17 @@ local interfaceOptionsReady = TryLoadInterfaceOptions()
 if interfaceOptionsReady then
   pcall(InterfaceOptions_AddCategory, mainPanel)
   pcall(InterfaceOptions_AddCategory, packsPanel)
+
+  -- Legacy alias so users can still find "SpeakinLite" in options
+  local legacyPanel = CreateFrame("Frame")
+  legacyPanel.name = "SpeakinLite"
+  legacyPanel:SetScript("OnShow", function()
+    if InterfaceOptionsFrame_OpenToCategory then
+      InterfaceOptionsFrame_OpenToCategory(mainPanel)
+      InterfaceOptionsFrame_OpenToCategory(mainPanel)
+    end
+  end)
+  pcall(InterfaceOptions_AddCategory, legacyPanel)
 end
 
 function addon:OpenOptions()
@@ -355,15 +458,31 @@ function addon:OpenOptions()
   if Settings then
     local ok = pcall(Settings.OpenToCategory, "Emote Control")
     if ok then return end
+    ok = pcall(Settings.OpenToCategory, "SpeakinLite")
+    if ok then return end
   end
 
   addon:Print("Options UI not available. Use /sl help for commands or check Interface Options manually.")
 end
 
 function addon:OpenPacksPanel()
-  if Settings and type(Settings.OpenToCategory) == "function" and type(addon.OpenSettings) == "function" then
-    addon:OpenSettings()
-    return
+  if Settings and type(Settings.OpenToCategory) == "function" then
+    if addon._settingsPacksCategory then
+      local ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory)
+      if ok then return end
+      if addon._settingsPacksCategory.ID then
+        ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory.ID)
+        if ok then return end
+      end
+      if type(addon._settingsPacksCategory.GetID) == "function" then
+        ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory:GetID())
+        if ok then return end
+      end
+    end
+    if type(addon.OpenSettings) == "function" then
+      addon:OpenSettings()
+      return
+    end
   end
 
   if interfaceOptionsReady and InterfaceOptionsFrame_OpenToCategory then
