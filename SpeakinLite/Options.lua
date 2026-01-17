@@ -373,26 +373,28 @@ local function BuildPacksPanel()
         label = label .. " (not loadable" .. reason .. ")"
       end
 
+      local show = true
       if filter ~= "" and not addon:SafeLower(label):find(filter, 1, true) then
-        goto continue
+        show = false
       end
 
-      local cb = MakeCheckbox(content, "EmoteControl_PackCB_" .. i, content, label, "")
-      cb:SetPoint("TOPLEFT", 0, y)
-      cb:SetChecked(theDb.packEnabled[row.id] ~= false)
-      cb:SetScript("OnClick", function(self)
-        if type(addon.SetPackEnabled) == "function" then
-          addon:SetPackEnabled(row.id, self:GetChecked() and true or false, row.addonName)
-        else
-          theDb.packEnabled[row.id] = self:GetChecked() and true or false
-          if type(addon.BuildTriggerIndex) == "function" then
-            addon:BuildTriggerIndex()
+      if show then
+        local cb = MakeCheckbox(content, "EmoteControl_PackCB_" .. i, content, label, "")
+        cb:SetPoint("TOPLEFT", 0, y)
+        cb:SetChecked(theDb.packEnabled[row.id] ~= false)
+        cb:SetScript("OnClick", function(self)
+          if type(addon.SetPackEnabled) == "function" then
+            addon:SetPackEnabled(row.id, self:GetChecked() and true or false, row.addonName)
+          else
+            theDb.packEnabled[row.id] = self:GetChecked() and true or false
+            if type(addon.BuildTriggerIndex) == "function" then
+              addon:BuildTriggerIndex()
+            end
           end
-        end
-      end)
-      table.insert(checkboxes, cb)
-      y = y - 28
-      ::continue::
+        end)
+        table.insert(checkboxes, cb)
+        y = y - 28
+      end
     end
 
     content:SetHeight(math.max(1, (-y) + 24))
