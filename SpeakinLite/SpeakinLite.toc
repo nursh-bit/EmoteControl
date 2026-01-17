@@ -1,0 +1,15 @@
+## Interface: 120000
+## Title: Emote Control
+## Notes: Lightweight speech/announcement addon with modular phrase packs.
+## Author: Nursh
+## Version: 0.9.0
+## SavedVariables: SpeakinLiteDB
+
+Utils.lua
+Registry.lua
+Core.lua
+ImportExport.lua
+TriggerBuilder.lua
+Settings.lua
+Options.lua
+Editor.lua

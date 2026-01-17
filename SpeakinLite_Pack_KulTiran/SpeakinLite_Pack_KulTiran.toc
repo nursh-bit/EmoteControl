@@ -1,0 +1,11 @@
+## Interface: 120000
+## Title: Emote Control - Kul Tiran Race Pack
+## Notes: Kul Tiran Human-specific triggers and phrases for SpeakinLite.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: SpeakinLite
+## LoadOnDemand: 1
+## X-SpeakinLite-PackType: Race
+## X-SpeakinLite-Race: KULTIRAN
+
+Pack.lua

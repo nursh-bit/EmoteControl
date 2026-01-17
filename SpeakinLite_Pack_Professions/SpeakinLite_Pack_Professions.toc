@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Professions Pack
+## Notes: Profession and crafting triggers for SpeakinLite.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: SpeakinLite
+## LoadOnDemand: 1
+## X-SpeakinLite-PackType: Professions
+
+Pack.lua
