@@ -1,10 +1,10 @@
--- SpeakinLite - Highmountain Tauren Race Pack
+-- EmoteControl - Highmountain Tauren Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_highmountaintauren",
   name = "Highmountain Tauren Race Pack",
   defaults = { race = "HIGHMOUNTAINTAUREN" },

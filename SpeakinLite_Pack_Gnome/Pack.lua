@@ -1,10 +1,10 @@
--- SpeakinLite - Gnome Race Pack
+-- EmoteControl - Gnome Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_gnome",
   name = "Gnome Race Pack",
   defaults = { race = "GNOME" },

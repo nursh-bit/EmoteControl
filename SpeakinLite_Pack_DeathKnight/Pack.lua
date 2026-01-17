@@ -1,6 +1,6 @@
--- SpeakinLite - Death Knight Pack
+-- EmoteControl - Death Knight Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
@@ -8,7 +8,7 @@ end
 -- - Uses spellName so the core can resolve IDs at runtime.
 -- - Cooldowns are intentionally higher for rotational spells to avoid spam.
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "deathknight",
   name = "Death Knight Pack",
   triggers = {

@@ -1,8 +1,8 @@
--- SpeakinLite - Common Pack
+-- EmoteControl - Common Pack
 -- Universal triggers that work for all classes and races
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or {}
+local addon = EmoteControl
 
 local pack = {
   name = "Common",

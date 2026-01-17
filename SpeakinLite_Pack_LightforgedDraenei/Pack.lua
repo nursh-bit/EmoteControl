@@ -1,10 +1,10 @@
--- SpeakinLite - Lightforged Draenei Race Pack
+-- EmoteControl - Lightforged Draenei Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_lightforgeddraenei",
   name = "Lightforged Draenei Race Pack",
   defaults = { race = "LIGHTFORGEDDRAENEI" },

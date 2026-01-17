@@ -1,10 +1,10 @@
--- SpeakinLite - Void Elf Race Pack
+-- EmoteControl - Void Elf Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_voidelf",
   name = "Void Elf Race Pack",
   defaults = { race = "VOIDELF" },

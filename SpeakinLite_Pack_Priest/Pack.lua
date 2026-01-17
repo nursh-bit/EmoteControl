@@ -1,10 +1,10 @@
--- SpeakinLite - Priest Pack
+-- EmoteControl - Priest Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "priest",
   name = "Priest Pack",
   defaults = { class = "PRIEST", unit = "player" },
