@@ -1,5 +1,16 @@
 # Emote Control Changelog
 
+## Version 0.9.1 - Maintenance Update
+
+### Fixes & Improvements
+- Fixed loot quality conditions so epic/legendary filters work correctly.
+- Reduced combat-log allocations to improve performance in busy fights.
+- Cached spell-cast trigger context to avoid duplicate work.
+- Prevented divide-by-zero in health threshold conditions.
+- Ensured editor backdrops work on Retail 10.0+ Settings API.
+- Unregistered unused dynamic events when rebuilding triggers.
+- Editor save now uses addon chat prefix.
+
 ## Version 0.8.0 - Major Feature Update
 
 ### New Features (1-4): Extended Template Variables & New Event Triggers
