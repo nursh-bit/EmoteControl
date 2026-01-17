@@ -1,10 +1,11 @@
--- SpeakinLite - Core
+-- EmoteControl - Core
 -- Lightweight, modular announcer addon. Packs provide triggers and phrases.
 
 local ADDON_NAME = ...
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 addon.VERSION = "0.9.0"
 
@@ -688,13 +689,15 @@ end
 
 function addon:LoadPacksForPlayer()
   -- Option B loader:
-  -- Load every enabled addon whose folder name starts with "SpeakinLite_Pack_",
+  -- Load every enabled addon whose folder name starts with "SpeakinLite_Pack_"
+  -- or "EmoteControl_Pack_",
   -- but only when its custom metadata matches the player.
   --
   -- Packs should set one (or more) of these in their .toc:
-  --   ## X-SpeakinLite-PackType: Common | Race | Professions | Activities
-  --   ## X-SpeakinLite-Class: MAGE
-  --   ## X-SpeakinLite-Race: VOIDELF
+  --   ## X-EmoteControl-PackType: Common | Race | Professions | Activities
+  --   ## X-EmoteControl-Class: MAGE
+  --   ## X-EmoteControl-Race: VOIDELF
+  -- (Legacy keys with X-SpeakinLite-* are also supported.)
 
   local function Load(name)
     if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
@@ -739,14 +742,28 @@ function addon:LoadPacksForPlayer()
   local playerClass = addon:SafeLower(addon:GetPlayerClass()) or ""
   local playerRace = addon:SafeLower(addon:GetPlayerRaceFile()) or ""
 
-  local prefix = "SpeakinLite_Pack_"
+  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
+  local function HasPackPrefix(name)
+    for _, prefix in ipairs(prefixes) do
+      if string.sub(name, 1, #prefix) == prefix then
+        return true
+      end
+    end
+    return false
+  end
   local n = GetNum()
   for i = 1, n do
     local name = GetInfo(i)
-    if type(name) == "string" and string.sub(name, 1, #prefix) == prefix then
-      local packType = addon:SafeLower(GetMeta(name, "X-SpeakinLite-PackType"))
-      local classTag = addon:SafeLower(GetMeta(name, "X-SpeakinLite-Class"))
-      local raceTag = addon:SafeLower(GetMeta(name, "X-SpeakinLite-Race"))
+    if type(name) == "string" and HasPackPrefix(name) then
+      local packType = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+      )
+      local classTag = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+      )
+      local raceTag = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+      )
 
       -- Determine if we should load this pack
       local shouldLoad = false
@@ -914,7 +931,10 @@ function addon:HandleEvent(eventName, ...)
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, destRaidFlags, ... = CombatLogGetCurrentEventInfo()
+    local eventInfo = { CombatLogGetCurrentEventInfo() }
+    local subevent = eventInfo[2]
+    local sourceGUID = eventInfo[4]
+    local destName = eventInfo[9]
 
     -- Only process events where player is the source
     if sourceGUID ~= UnitGUID("player") then
@@ -927,21 +947,25 @@ function addon:HandleEvent(eventName, ...)
     local spellId, spellName
 
     if subevent == "SWING_DAMAGE" then
-      local amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = ...
+      local amount = eventInfo[12]
+      local critical = eventInfo[18]
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
         extraData.spell = "attack"
       end
     elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
-      spellId, spellName, _, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = ...
+      spellId = eventInfo[12]
+      spellName = eventInfo[13]
+      local amount = eventInfo[15]
+      local critical = eventInfo[21]
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
         extraData.spell = spellName or "spell"
       end
     elseif subevent == "SWING_MISSED" then
-      local missType = ...
+      local missType = eventInfo[12]
       if missType == "PARRY" then
         triggerEventName = "COMBAT_PARRIED"
       else
@@ -949,7 +973,9 @@ function addon:HandleEvent(eventName, ...)
       end
       extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
-      spellId, spellName, _, missType = ...
+      spellId = eventInfo[12]
+      spellName = eventInfo[13]
+      local missType = eventInfo[15]
       if missType == "PARRY" then
         triggerEventName = "COMBAT_PARRIED"
       else
@@ -957,7 +983,9 @@ function addon:HandleEvent(eventName, ...)
       end
       extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_INTERRUPT" then
-      spellId, spellName, _, extraSpellId, extraSpellName = ...
+      spellId = eventInfo[12]
+      spellName = eventInfo[13]
+      local extraSpellName = eventInfo[16]
       triggerEventName = "COMBAT_INTERRUPTED"
       extraData.spell = spellName or "spell"
       extraData.interruptedSpell = extraSpellName or "unknown"
@@ -1008,8 +1036,8 @@ local function PrintHelp()
   addon:Print("/sl cooldown <seconds> - Set global cooldown")
 end
 
-SLASH_SPEAKINLITE1 = "/sl"
-SlashCmdList["SPEAKINLITE"] = function(msg)
+SLASH_EMOTECONTROL1 = "/sl"
+SlashCmdList["EMOTECONTROL"] = function(msg)
   msg = msg or ""
   local cmd, rest = msg:match("^(%S+)%s*(.-)%s*$")
   cmd = addon:SafeLower(cmd)
@@ -1061,7 +1089,7 @@ SlashCmdList["SPEAKINLITE"] = function(msg)
     if type(addon.OpenPacksPanel) == "function" then
       addon:OpenPacksPanel()
     else
-      addon:Print("Packs UI not available. Use Interface Options > SpeakinLite > Packs.")
+      addon:Print("Packs UI not available. Use Interface Options > Emote Control > Packs.")
     end
     return
   end
@@ -1170,8 +1198,9 @@ end
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then
-    SpeakinLiteDB = SpeakinLiteDB or {}
-    db = SpeakinLiteDB
+    EmoteControlDB = EmoteControlDB or SpeakinLiteDB or {}
+    SpeakinLiteDB = EmoteControlDB
+    db = EmoteControlDB
     addon.db = db
 
     if db.enabled == nil then db.enabled = true end

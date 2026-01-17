@@ -1,10 +1,10 @@
--- SpeakinLite - Shaman Pack
+-- EmoteControl - Shaman Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "shaman",
   name = "Shaman Pack",
   defaults = { class = "SHAMAN", unit = "player" },

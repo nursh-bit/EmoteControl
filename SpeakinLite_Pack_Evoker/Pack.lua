@@ -1,10 +1,10 @@
--- SpeakinLite - Evoker Pack
+-- EmoteControl - Evoker Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "evoker",
   name = "Evoker Pack",
   defaults = { class = "EVOKER", unit = "player" },

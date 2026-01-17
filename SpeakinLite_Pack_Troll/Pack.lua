@@ -1,10 +1,10 @@
--- SpeakinLite - Troll Race Pack
+-- EmoteControl - Troll Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_troll",
   name = "Troll Race Pack",
   defaults = { race = "TROLL" },

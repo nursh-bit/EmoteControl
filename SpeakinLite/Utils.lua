@@ -1,8 +1,9 @@
--- SpeakinLite - Shared Utility Functions
+-- EmoteControl - Shared Utility Functions
 -- This file must be loaded first (see .toc file)
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 -- String utilities
 function addon:SafeLower(s)
@@ -39,13 +40,15 @@ end
 function addon:Print(msg)
   if msg == nil then return end
   if DEFAULT_CHAT_FRAME then
-    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99SpeakinLite|r: " .. tostring(msg))
+    DEFAULT_CHAT_FRAME:AddMessage("|cff33ff99EmoteControl|r: " .. tostring(msg))
   end
 end
 
 -- Database accessor
 function addon:GetDB()
-  return self.db or rawget(_G, "SpeakinLiteDB")
+  return self.db
+    or rawget(_G, "EmoteControlDB")
+    or rawget(_G, "SpeakinLiteDB")
 end
 
 -- Random selection from list

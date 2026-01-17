@@ -1,10 +1,10 @@
--- SpeakinLite - Undead Race Pack
+-- EmoteControl - Undead Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_undead",
   name = "Undead Race Pack",
   defaults = { race = "SCOURGE" },  -- Undead is "SCOURGE" in the API
