@@ -2,7 +2,7 @@
 ## Title: Emote Control
 ## Notes: Lightweight speech/announcement addon with modular phrase packs.
 ## Author: Nursh
-## Version: 0.9.3
+## Version: 0.9.5
 ## SavedVariables: EmoteControlDB, SpeakinLiteDB
 
 Utils.lua

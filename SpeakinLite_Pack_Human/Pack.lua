@@ -27,8 +27,8 @@ EmoteControl:RegisterPack({
 
     -- Combat end
     {
-      id = "human_combat_start",
-      event = "PLAYER_REGEN_DISABLED",
+      id = "human_combat_end",
+      event = "PLAYER_REGEN_ENABLED",
       cooldown = 45,
       category = "flavor",
       channel = "EMOTE",

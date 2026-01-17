@@ -1,5 +1,23 @@
 # Emote Control Changelog
 
+## Version 0.9.5 - Common/Daily/Professions Expansion
+
+### New Features
+- Added ready check, summon, bag full, repair, boss kill, and M+ triggers to Common.
+- Added transmog, portal, and toy triggers to DailyActivities.
+- Added disenchant, milling, and prospecting triggers to Professions.
+
+### Fixes & Improvements
+- Common trigger phrase pools expanded to 15+ lines.
+- Added wildcard support for spell name matching (e.g., "Portal:*").
+
+## Version 0.9.4 - Race Pack Pass
+
+### New Features
+- Race pack messages normalized to 5-15 lines per trigger.
+- Goblin pack now includes Rocket Barrage trigger.
+- Fixed Human combat end trigger configuration.
+
 ## Version 0.9.3 - Packs UX Improvements
 
 ### New Features

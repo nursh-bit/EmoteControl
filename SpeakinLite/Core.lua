@@ -7,7 +7,7 @@ EmoteControl = EmoteControl or SpeakinLite or {}
 SpeakinLite = EmoteControl
 local addon = EmoteControl
 
-addon.VERSION = "0.9.3"
+addon.VERSION = "0.9.5"
 addon.DB_VERSION = 2
 
 local frame = CreateFrame("Frame")
@@ -34,6 +34,7 @@ function addon:ApplyRecommendedDefaults(db)
   db.globalCooldown = 6
   db.rotationProtection = "MEDIUM"
   db.maxPerMinute = 8
+  db.repairThreshold = 0.2
   db.enableSpellTriggers = true
   db.enableNonSpellTriggers = true
   db.onlyLearnedSpells = true
@@ -56,6 +57,7 @@ function addon:ApplyMigrations(db)
     SetDefault(db, "enableLootTriggers", true)
     SetDefault(db, "enableAchievementTriggers", true)
     SetDefault(db, "enableLevelUpTriggers", true)
+    SetDefault(db, "repairThreshold", 0.2)
     v = 2
   end
 
@@ -714,10 +716,38 @@ function addon:MatchesTrigger(trig, eventName, args)
       return false
     end
 
-    if (not trig._spellID) and trig._spellNameLower then
+    if not trig._spellID then
       local spellName = addon:GetSpellName(args.spellID)
-      if addon:SafeLower(spellName) ~= trig._spellNameLower then
-        return false
+      local spellNameLower = addon:SafeLower(spellName)
+      if trig._spellNameLower then
+        local want = trig._spellNameLower
+        if type(want) == "string" and want:sub(-1) == "*" then
+          local prefix = want:sub(1, -2)
+          if not (spellNameLower and spellNameLower:sub(1, #prefix) == prefix) then
+            return false
+          end
+        else
+          if spellNameLower ~= want then
+            return false
+          end
+        end
+      elseif trig._spellNameLowerList then
+        local ok = false
+        for _, want in ipairs(trig._spellNameLowerList) do
+          if type(want) == "string" and want:sub(-1) == "*" then
+            local prefix = want:sub(1, -2)
+            if spellNameLower and spellNameLower:sub(1, #prefix) == prefix then
+              ok = true
+              break
+            end
+          elseif spellNameLower == want then
+            ok = true
+            break
+          end
+        end
+        if not ok then
+          return false
+        end
       end
     end
   end
@@ -1180,6 +1210,51 @@ function addon:HandleEvent(eventName, ...)
     return
   end
 
+  if eventName == "UI_ERROR_MESSAGE" then
+    local _, message = ...
+    local errFull = _G.ERR_INV_FULL or _G.ERR_BAG_FULL
+    if message and errFull and message == errFull then
+      local bucket = addon.TriggersByEvent and addon.TriggersByEvent.BAG_FULL
+      if bucket then
+        local ctx = addon:MakeContext(nil)
+        for _, trig in ipairs(bucket.list or {}) do
+          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, "BAG_FULL", {}) then
+            addon:FireTrigger(trig, ctx)
+          end
+        end
+      end
+    end
+    return
+  end
+
+  if eventName == "UPDATE_INVENTORY_DURABILITY" then
+    local bucket = addon.TriggersByEvent and addon.TriggersByEvent.REPAIR_NEEDED
+    if bucket then
+      local lowestPct
+      for slot = 1, 18 do
+        if type(GetInventoryItemDurability) == "function" then
+          local cur, max = GetInventoryItemDurability("player", slot)
+          if cur and max and max > 0 then
+            local pct = cur / max
+            if not lowestPct or pct < lowestPct then
+              lowestPct = pct
+            end
+          end
+        end
+      end
+      local threshold = (db and tonumber(db.repairThreshold)) or 0.2
+      if lowestPct and lowestPct <= threshold then
+        local ctx = addon:MakeContext(nil)
+        for _, trig in ipairs(bucket.list or {}) do
+          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, "REPAIR_NEEDED", {}) then
+            addon:FireTrigger(trig, ctx)
+          end
+        end
+      end
+    end
+    return
+  end
+
   if eventName == "UNIT_SPELLCAST_SUCCEEDED" then
     if db.enableSpellTriggers == false then return end
   else
@@ -1588,6 +1663,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SetDefault(db, "enableLootTriggers", true)
     SetDefault(db, "enableAchievementTriggers", true)
     SetDefault(db, "enableLevelUpTriggers", true)
+    SetDefault(db, "repairThreshold", 0.2)
     SetDefault(db, "onboardingShown", false)
     SetDefault(db, "version", addon.DB_VERSION)
 
