@@ -1,8 +1,9 @@
--- SpeakinLite - Trigger Editor UI
+-- EmoteControl - Trigger Editor UI
 -- Simple in-game editor for per-trigger overrides (enabled/cooldown/channel/messages)
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 local frame
 local selectedId
@@ -167,7 +168,7 @@ function addon:OpenEditor()
   end
 
   if not frame then
-    frame = CreateFrame("Frame", "SpeakinLiteEditorFrame", UIParent)
+    frame = CreateFrame("Frame", "EmoteControlEditorFrame", UIParent)
     frame:SetSize(840, 520)
     frame:SetPoint("CENTER")
     frame:SetFrameStrata("DIALOG")
@@ -203,7 +204,7 @@ function addon:OpenEditor()
     leftPane:SetSize(380, 420)
     MakeBackdrop(leftPane)
 
-    local scroll = CreateFrame("ScrollFrame", "SpeakinLiteEditorScroll", leftPane, "FauxScrollFrameTemplate")
+    local scroll = CreateFrame("ScrollFrame", "EmoteControlEditorScroll", leftPane, "FauxScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 0, -6)
     scroll:SetPoint("BOTTOMRIGHT", -28, 6)
     scroll:SetScript("OnVerticalScroll", function(self, offset)
@@ -274,7 +275,7 @@ function addon:OpenEditor()
     chLabel:SetPoint("TOPLEFT", cdLabel, "BOTTOMLEFT", 0, -14)
     chLabel:SetText("Channel override")
 
-    local channelDD = CreateDropdown(rightPane, "SpeakinLiteEditorChannelDD", {
+    local channelDD = CreateDropdown(rightPane, "EmoteControlEditorChannelDD", {
       { label = "(use global)", value = "" },
       { label = "Self", value = "SELF" },
       { label = "Party", value = "PARTY" },
@@ -299,7 +300,7 @@ function addon:OpenEditor()
     boxFrame:SetPoint("BOTTOMRIGHT", -10, 54)
     MakeBackdrop(boxFrame)
 
-    local scrollMsg = CreateFrame("ScrollFrame", "SpeakinLiteEditorMsgScroll", boxFrame, "UIPanelScrollFrameTemplate")
+    local scrollMsg = CreateFrame("ScrollFrame", "EmoteControlEditorMsgScroll", boxFrame, "UIPanelScrollFrameTemplate")
     scrollMsg:SetPoint("TOPLEFT", 6, -6)
     scrollMsg:SetPoint("BOTTOMRIGHT", -26, 6)
 
@@ -349,7 +350,7 @@ function addon:OpenEditor()
         ov.messages = nil
       end
 
-      print("SpeakinLite: saved override for " .. selectedId)
+      print("EmoteControl: saved override for " .. selectedId)
       RefreshDetails()
     end)
 

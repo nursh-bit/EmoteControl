@@ -1,10 +1,10 @@
--- SpeakinLite - Nightborne Race Pack
+-- EmoteControl - Nightborne Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_nightborne",
   name = "Nightborne Race Pack",
   defaults = { race = "NIGHTBORNE" },

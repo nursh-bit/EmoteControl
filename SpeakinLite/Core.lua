@@ -1,10 +1,11 @@
--- SpeakinLite - Core
+-- EmoteControl - Core
 -- Lightweight, modular announcer addon. Packs provide triggers and phrases.
 
 local ADDON_NAME = ...
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 addon.VERSION = "0.9.0"
 
@@ -18,6 +19,7 @@ addon.db = nil
 addon._sentTimes = addon._sentTimes or {}
 
 local SendChat = (C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" and C_ChatInfo.SendChatMessage) or SendChatMessage
+local CanChatSend = (C_ChatInfo and type(C_ChatInfo.CanChatMessageBeSent) == "function" and C_ChatInfo.CanChatMessageBeSent) or nil
 
 local function IsOutdoorRestrictedChat(chatType)
   -- EMOTE works everywhere, so only SAY/YELL/CHANNEL are restricted outdoors
@@ -154,6 +156,15 @@ function addon:Output(msg, channelOverride)
         NoteGlobalSend()
         return
       end
+    end
+  end
+
+  if CanChatSend then
+    local ok, canSend = pcall(CanChatSend, channel, msg)
+    if ok and canSend == false then
+      addon:Print(msg)
+      NoteGlobalSend()
+      return
     end
   end
 
@@ -369,6 +380,71 @@ function addon:ShowStats()
   
   for _, data in ipairs(catSorted) do
     addon:Print(string.format("  %s: %d", data.cat, data.count))
+  end
+end
+
+-- Loot processing (handles async item info in Retail)
+local function GetItemQuality(itemLink)
+  if C_Item and type(C_Item.GetItemInfo) == "function" then
+    local info = C_Item.GetItemInfo(itemLink)
+    if type(info) == "table" and type(info.quality) == "number" then
+      return info.quality
+    end
+  end
+  if type(GetItemInfo) == "function" then
+    local _, _, quality = GetItemInfo(itemLink)
+    if type(quality) == "number" then return quality end
+  end
+  return nil
+end
+
+local function QualityName(quality)
+  if quality == 5 then return "Legendary" end
+  if quality == 4 then return "Epic" end
+  if quality == 3 then return "Rare" end
+  if quality == 2 then return "Uncommon" end
+  return ""
+end
+
+function addon:ProcessLootMessage(message, eventName, attempts)
+  if type(message) ~= "string" then return end
+  local fullLink = message:match("|c.-|H.-|h.-|h|r")
+  if not fullLink then return end
+
+  local quality = GetItemQuality(fullLink)
+  if not quality then
+    local itemID = tonumber(fullLink:match("item:(%d+)"))
+    if itemID and (attempts or 0) < 2 then
+      addon._pendingLoot = addon._pendingLoot or {}
+      addon._pendingLoot[itemID] = addon._pendingLoot[itemID] or {}
+      table.insert(addon._pendingLoot[itemID], {
+        message = message,
+        eventName = eventName,
+        attempts = (attempts or 0) + 1
+      })
+      if C_Item and type(C_Item.RequestLoadItemData) == "function" then
+        pcall(C_Item.RequestLoadItemData, itemID)
+      end
+    end
+    return
+  end
+
+  local extraData = {
+    item = fullLink,
+    itemLink = fullLink,
+    quality = QualityName(quality),
+    qualityNum = tostring(quality or 0),
+  }
+
+  local args = { quality = quality }
+  local ctx = addon:MakeContext(nil, extraData)
+  local bucket = addon.TriggersByEvent and addon.TriggersByEvent[eventName]
+  if not bucket then return end
+
+  for _, trig in ipairs(bucket.list or {}) do
+    if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+      addon:FireTrigger(trig, ctx)
+    end
   end
 end
 
@@ -688,13 +764,15 @@ end
 
 function addon:LoadPacksForPlayer()
   -- Option B loader:
-  -- Load every enabled addon whose folder name starts with "SpeakinLite_Pack_",
+  -- Load every enabled addon whose folder name starts with "SpeakinLite_Pack_"
+  -- or "EmoteControl_Pack_",
   -- but only when its custom metadata matches the player.
   --
   -- Packs should set one (or more) of these in their .toc:
-  --   ## X-SpeakinLite-PackType: Common | Race | Professions | Activities
-  --   ## X-SpeakinLite-Class: MAGE
-  --   ## X-SpeakinLite-Race: VOIDELF
+  --   ## X-EmoteControl-PackType: Common | Race | Professions | Activities
+  --   ## X-EmoteControl-Class: MAGE
+  --   ## X-EmoteControl-Race: VOIDELF
+  -- (Legacy keys with X-SpeakinLite-* are also supported.)
 
   local function Load(name)
     if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
@@ -739,14 +817,28 @@ function addon:LoadPacksForPlayer()
   local playerClass = addon:SafeLower(addon:GetPlayerClass()) or ""
   local playerRace = addon:SafeLower(addon:GetPlayerRaceFile()) or ""
 
-  local prefix = "SpeakinLite_Pack_"
+  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
+  local function HasPackPrefix(name)
+    for _, prefix in ipairs(prefixes) do
+      if string.sub(name, 1, #prefix) == prefix then
+        return true
+      end
+    end
+    return false
+  end
   local n = GetNum()
   for i = 1, n do
     local name = GetInfo(i)
-    if type(name) == "string" and string.sub(name, 1, #prefix) == prefix then
-      local packType = addon:SafeLower(GetMeta(name, "X-SpeakinLite-PackType"))
-      local classTag = addon:SafeLower(GetMeta(name, "X-SpeakinLite-Class"))
-      local raceTag = addon:SafeLower(GetMeta(name, "X-SpeakinLite-Race"))
+    if type(name) == "string" and HasPackPrefix(name) then
+      local packType = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+      )
+      local classTag = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+      )
+      local raceTag = addon:SafeLower(
+        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+      )
 
       -- Determine if we should load this pack
       local shouldLoad = false
@@ -785,12 +877,29 @@ function addon:RebuildAndRegister()
     frame:RegisterEvent(eventName)
   end
 
+  frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+  frame:RegisterEvent("ITEM_DATA_LOAD_RESULT")
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 end
 
 function addon:HandleEvent(eventName, ...)
   if not db or db.enabled == false then return end
+
+  -- Item info async load for loot parsing (Retail async cache)
+  if eventName == "GET_ITEM_INFO_RECEIVED" or eventName == "ITEM_DATA_LOAD_RESULT" then
+    local itemID, success = ...
+    if not success or not addon._pendingLoot or not itemID then
+      return
+    end
+    local pending = addon._pendingLoot[itemID]
+    if not pending then return end
+    addon._pendingLoot[itemID] = nil
+    for _, entry in ipairs(pending) do
+      addon:ProcessLootMessage(entry.message, entry.eventName, entry.attempts or 0)
+    end
+    return
+  end
 
   if eventName == "UNIT_SPELLCAST_SUCCEEDED" then
     if db.enableSpellTriggers == false then return end
@@ -877,44 +986,17 @@ function addon:HandleEvent(eventName, ...)
   if eventName == "CHAT_MSG_LOOT" or eventName == "LOOT_READY" then
     local message = ...
     if type(message) == "string" then
-      -- Parse item link from loot message
-      local itemLink = message:match("|c.-|H.-|h(.-)|h|r")
-      if itemLink then
-        local _, _, quality, _, _, _, _, _, _, _, _, _, _, _, _ = C_Item and C_Item.GetItemInfo and C_Item.GetItemInfo(itemLink) or GetItemInfo(itemLink)
-        local qualityName = ""
-        if quality == 4 then
-          qualityName = "Epic"
-        elseif quality == 5 then
-          qualityName = "Legendary"
-        elseif quality == 3 then
-          qualityName = "Rare"
-        elseif quality == 2 then
-          qualityName = "Uncommon"
-        end
-        
-        local extraData = {
-          item = itemLink or "an item",
-          itemLink = message:match("|c.-|H.-|h.-|h|r") or "",
-          quality = qualityName,
-          qualityNum = tostring(quality or 0),
-        }
-        
-        args.quality = quality
-        local ctx = addon:MakeContext(nil, extraData)
-        
-        for _, trig in ipairs(bucket.list or {}) do
-          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-            addon:FireTrigger(trig, ctx)
-          end
-        end
-      end
+      addon:ProcessLootMessage(message, eventName, 0)
     end
     return
   end
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, destRaidFlags, ... = CombatLogGetCurrentEventInfo()
+    local eventInfo = { CombatLogGetCurrentEventInfo() }
+    local subevent = eventInfo[2]
+    local sourceGUID = eventInfo[4]
+    local destName = eventInfo[9]
 
     -- Only process events where player is the source
     if sourceGUID ~= UnitGUID("player") then
@@ -927,21 +1009,25 @@ function addon:HandleEvent(eventName, ...)
     local spellId, spellName
 
     if subevent == "SWING_DAMAGE" then
-      local amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = ...
+      local amount = eventInfo[12]
+      local critical = eventInfo[18]
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
         extraData.spell = "attack"
       end
     elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
-      spellId, spellName, _, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = ...
+      spellId = eventInfo[12]
+      spellName = eventInfo[13]
+      local amount = eventInfo[15]
+      local critical = eventInfo[21]
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
         extraData.spell = spellName or "spell"
       end
     elseif subevent == "SWING_MISSED" then
-      local missType = ...
+      local missType = eventInfo[12]
       if missType == "PARRY" then
         triggerEventName = "COMBAT_PARRIED"
       else
@@ -949,7 +1035,9 @@ function addon:HandleEvent(eventName, ...)
       end
       extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
-      spellId, spellName, _, missType = ...
+      spellId = eventInfo[12]
+      spellName = eventInfo[13]
+      local missType = eventInfo[15]
       if missType == "PARRY" then
         triggerEventName = "COMBAT_PARRIED"
       else
@@ -957,7 +1045,9 @@ function addon:HandleEvent(eventName, ...)
       end
       extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_INTERRUPT" then
-      spellId, spellName, _, extraSpellId, extraSpellName = ...
+      spellId = eventInfo[12]
+      spellName = eventInfo[13]
+      local extraSpellName = eventInfo[16]
       triggerEventName = "COMBAT_INTERRUPTED"
       extraData.spell = spellName or "spell"
       extraData.interruptedSpell = extraSpellName or "unknown"
@@ -1008,8 +1098,8 @@ local function PrintHelp()
   addon:Print("/sl cooldown <seconds> - Set global cooldown")
 end
 
-SLASH_SPEAKINLITE1 = "/sl"
-SlashCmdList["SPEAKINLITE"] = function(msg)
+SLASH_EMOTECONTROL1 = "/sl"
+SlashCmdList["EMOTECONTROL"] = function(msg)
   msg = msg or ""
   local cmd, rest = msg:match("^(%S+)%s*(.-)%s*$")
   cmd = addon:SafeLower(cmd)
@@ -1061,7 +1151,7 @@ SlashCmdList["SPEAKINLITE"] = function(msg)
     if type(addon.OpenPacksPanel) == "function" then
       addon:OpenPacksPanel()
     else
-      addon:Print("Packs UI not available. Use Interface Options > SpeakinLite > Packs.")
+      addon:Print("Packs UI not available. Use Interface Options > Emote Control > Packs.")
     end
     return
   end
@@ -1170,8 +1260,9 @@ end
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then
-    SpeakinLiteDB = SpeakinLiteDB or {}
-    db = SpeakinLiteDB
+    EmoteControlDB = EmoteControlDB or SpeakinLiteDB or {}
+    SpeakinLiteDB = EmoteControlDB
+    db = EmoteControlDB
     addon.db = db
 
     if db.enabled == nil then db.enabled = true end

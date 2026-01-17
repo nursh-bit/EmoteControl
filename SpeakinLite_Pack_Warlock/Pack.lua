@@ -1,10 +1,10 @@
--- SpeakinLite - Warlock Pack
+-- EmoteControl - Warlock Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "warlock",
   name = "Warlock Pack",
   defaults = { class = "WARLOCK", unit = "player" },

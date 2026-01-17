@@ -1,10 +1,10 @@
--- SpeakinLite - Mechagnome Race Pack
+-- EmoteControl - Mechagnome Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_mechagnome",
   name = "Mechagnome Race Pack",
   defaults = { race = "MECHAGNOME" },

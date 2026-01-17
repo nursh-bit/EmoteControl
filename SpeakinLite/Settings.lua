@@ -1,8 +1,9 @@
--- SpeakinLite - Settings Panel (Retail 10.0+ Settings UI)
+-- EmoteControl - Settings Panel (Retail 10.0+ Settings UI)
 -- Uses Settings.RegisterCanvasLayoutCategory so we can place our own widgets.
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 local panel
 
@@ -59,7 +60,7 @@ end
 
 local function CreateSlider(parent, label, x, y, minVal, maxVal, step)
   addon._sliderSeq = (addon._sliderSeq or 0) + 1
-  local name = "SpeakinLiteOptionsSlider" .. tostring(addon._sliderSeq)
+  local name = "EmoteControlOptionsSlider" .. tostring(addon._sliderSeq)
   local s = CreateFrame("Slider", name, parent, "OptionsSliderTemplate")
   s:SetPoint("TOPLEFT", parent, "TOPLEFT", x, y)
   s:SetMinMaxValues(minVal, maxVal)
@@ -130,45 +131,50 @@ function addon:CreateSettingsPanel()
   addon._settingsCategoryId = category.ID or (type(category.GetID) == "function" and category:GetID())
 
   -- Title
-  CreateLabel(panel, "SpeakinLite", 16, -16, "large")
+  CreateLabel(panel, "Emote Control", 16, -16, "large")
   CreateLabel(panel, "Lightweight spell + event announcer. Packs add triggers and phrases.", 16, -40)
 
   local y = -72
 
   -- Master toggles
   local cbEnabled
-  cbEnabled = CreateCheckbox(panel, "Enable SpeakinLite", 16, y, function(v)
+  cbEnabled = CreateCheckbox(panel, "Enable Emote Control", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.enabled = v
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
   local cbSpell = CreateCheckbox(panel, "Enable spell triggers", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.enableSpellTriggers = v
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
   local cbNonSpell = CreateCheckbox(panel, "Enable non-spell triggers (login, death, etc.)", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.enableNonSpellTriggers = v
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
   local cbKnown = CreateCheckbox(panel, "Only announce spells you actually know", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.onlyLearnedSpells = v
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
   local cbFallback = CreateCheckbox(panel, "If SAY/YELL blocked outdoors, use EMOTE instead", 16, y, function(v)
     local db = addon:GetDB() or {}
     db.fallbackToSelf = v
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
   end)
 
   -- Channel selection (simple radio group)
@@ -189,7 +195,8 @@ function addon:CreateSettingsPanel()
   local function SetChannel(v)
     local db = addon:GetDB() or {}
     db.channel = v
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
     for _, r in ipairs(radio) do
       r:SetChecked(r._value == v)
     end
@@ -225,7 +232,8 @@ function addon:CreateSettingsPanel()
   slider:SetScript("OnValueChanged", function(self, value)
     local db = addon:GetDB() or {}
     db.globalCooldown = math.floor(value + 0.5)
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 60
@@ -244,7 +252,8 @@ function addon:CreateSettingsPanel()
 
     local db = addon:GetDB() or {}
     db.packEnabled = db.packEnabled or {}
-    SpeakinLiteDB = db
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
 
     local ids = {}
     for id, _ in pairs(addon.Packs or {}) do
@@ -259,7 +268,8 @@ function addon:CreateSettingsPanel()
         local db2 = addon:GetDB() or {}
         db2.packEnabled = db2.packEnabled or {}
         db2.packEnabled[id] = v
-        SpeakinLiteDB = db2
+        EmoteControlDB = db2
+        SpeakinLiteDB = EmoteControlDB
       end)
       table.insert(packChecks, cb)
       py = py - 24
@@ -275,7 +285,7 @@ function addon:CreateSettingsPanel()
 
   local testBtn = CreateButton(panel, "Test output", 300, y - 28, 180, function()
     if type(addon.Output) == "function" then
-      addon:Output("Testing SpeakinLite output from settings panel.")
+      addon:Output("Testing Emote Control output from settings panel.")
     end
   end)
 

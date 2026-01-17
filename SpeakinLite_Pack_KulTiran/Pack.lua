@@ -1,10 +1,10 @@
--- SpeakinLite - Kul Tiran Human Race Pack
+-- EmoteControl - Kul Tiran Human Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_kultiran",
   name = "Kul Tiran Race Pack",
   defaults = { race = "KULTIRAN" },
