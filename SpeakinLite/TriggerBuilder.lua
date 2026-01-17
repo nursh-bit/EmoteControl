@@ -257,6 +257,7 @@ end
 function addon:RegisterCustomTrigger(trigger)
   -- Create a custom pack for this trigger
   local pack = {
+    id = "custom",
     name = "Custom_" .. trigger.id,
     triggers = {trigger}
   }

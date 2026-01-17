@@ -914,40 +914,62 @@ function addon:HandleEvent(eventName, ...)
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, destRaidFlags, spellId, spellName, spellSchool, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = CombatLogGetCurrentEventInfo()
-    
+    local timestamp, subevent, _, sourceGUID, sourceName, sourceFlags, _, destGUID, destName, destFlags, destRaidFlags, ... = CombatLogGetCurrentEventInfo()
+
     -- Only process events where player is the source
     if sourceGUID ~= UnitGUID("player") then
       return
     end
-    
+
     -- Map combat log subevents to our trigger system
     local triggerEventName = nil
     local extraData = {}
-    
-    if subevent == "SWING_DAMAGE" or subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
+    local spellId, spellName
+
+    if subevent == "SWING_DAMAGE" then
+      local amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = ...
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
-        extraData.spell = spellName or "attack"
+        extraData.spell = "attack"
       end
-    elseif subevent == "SWING_MISSED" or subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
-      -- For now, trigger on any miss type
-      triggerEventName = "COMBAT_DODGED"  -- Generic miss trigger
-      extraData.missType = "MISS"
+    elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
+      spellId, spellName, _, amount, overkill, school, resisted, blocked, absorbed, critical, glancing, crushing, isOffHand = ...
+      if critical then
+        triggerEventName = "COMBAT_CRITICAL_HIT"
+        extraData.damage = tostring(amount or 0)
+        extraData.spell = spellName or "spell"
+      end
+    elseif subevent == "SWING_MISSED" then
+      local missType = ...
+      if missType == "PARRY" then
+        triggerEventName = "COMBAT_PARRIED"
+      else
+        triggerEventName = "COMBAT_DODGED"
+      end
+      extraData.missType = tostring(missType or "MISS")
+    elseif subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
+      spellId, spellName, _, missType = ...
+      if missType == "PARRY" then
+        triggerEventName = "COMBAT_PARRIED"
+      else
+        triggerEventName = "COMBAT_DODGED"
+      end
+      extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_INTERRUPT" then
+      spellId, spellName, _, extraSpellId, extraSpellName = ...
       triggerEventName = "COMBAT_INTERRUPTED"
       extraData.spell = spellName or "spell"
-      extraData.interruptedSpell = "unknown"
+      extraData.interruptedSpell = extraSpellName or "unknown"
     end
-    
+
     -- If we found a combat event to process, fire triggers for it
     if triggerEventName then
       local bucket = addon.TriggersByEvent and addon.TriggersByEvent[triggerEventName]
       if bucket then
         extraData.target = destName or "enemy"
         local ctx = addon:MakeContext(spellId, extraData)
-        
+
         for _, trig in ipairs(bucket.list or {}) do
           if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, triggerEventName, args) then
             addon:FireTrigger(trig, ctx)
@@ -955,7 +977,7 @@ function addon:HandleEvent(eventName, ...)
         end
       end
     end
-    
+
     return
   end
 
@@ -1253,7 +1275,8 @@ frame:RegisterEvent("RESURRECT_REQUEST")
 frame:RegisterEvent("GROUP_JOINED")
 frame:RegisterEvent("GROUP_LEFT")
 frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")frame:RegisterEvent("MAIL_SHOW")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("MAIL_SHOW")
 frame:RegisterEvent("BANKFRAME_OPENED")
 frame:RegisterEvent("MERCHANT_SHOW")
 frame:RegisterEvent("TAXIMAP_OPENED")
