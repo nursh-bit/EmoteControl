@@ -7,7 +7,7 @@ EmoteControl = EmoteControl or SpeakinLite or {}
 SpeakinLite = EmoteControl
 local addon = EmoteControl
 
-addon.VERSION = "0.9.0"
+addon.VERSION = "0.9.1"
 
 local frame = CreateFrame("Frame")
 
@@ -668,6 +668,23 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Extended conditions
   
+  -- Loot quality gating (e.g., epic/legendary)
+  if cond.quality ~= nil and args.quality ~= nil then
+    if type(cond.quality) == "number" then
+      if args.quality ~= cond.quality then return false end
+    elseif type(cond.quality) == "string" then
+      local want = tonumber(cond.quality)
+      if want and args.quality ~= want then return false end
+    elseif type(cond.quality) == "table" then
+      local ok = false
+      for _, v in ipairs(cond.quality) do
+        local want = tonumber(v) or v
+        if want == args.quality then ok = true break end
+      end
+      if not ok then return false end
+    end
+  end
+  
   -- Random chance (0.0 to 1.0, where 0.5 = 50%)
   if type(cond.randomChance) == "number" then
     if math.random() > cond.randomChance then
@@ -745,16 +762,16 @@ function addon:MatchesTrigger(trig, eventName, args)
   end
   
   -- Health percentage threshold
-  if type(cond.healthBelow) == "number" then
-    local healthPct = (UnitHealth("player") / UnitHealthMax("player")) * 100
-    if healthPct >= cond.healthBelow then
+  if type(cond.healthBelow) == "number" or type(cond.healthAbove) == "number" then
+    local healthMax = UnitHealthMax("player") or 0
+    local healthPct = 0
+    if healthMax > 0 then
+      healthPct = (UnitHealth("player") / healthMax) * 100
+    end
+    if type(cond.healthBelow) == "number" and healthPct >= cond.healthBelow then
       return false
     end
-  end
-  
-  if type(cond.healthAbove) == "number" then
-    local healthPct = (UnitHealth("player") / UnitHealthMax("player")) * 100
-    if healthPct <= cond.healthAbove then
+    if type(cond.healthAbove) == "number" and healthPct <= cond.healthAbove then
       return false
     end
   end
@@ -872,15 +889,31 @@ function addon:RebuildAndRegister()
   if type(addon.BuildTriggerIndex) == "function" then
     addon:BuildTriggerIndex()
   end
-
-  for eventName, _ in pairs(addon.EventsToRegister or {}) do
-    frame:RegisterEvent(eventName)
+  
+  addon._registeredEvents = addon._registeredEvents or {}
+  local keep = {
+    GET_ITEM_INFO_RECEIVED = true,
+    ITEM_DATA_LOAD_RESULT = true,
+    PLAYER_REGEN_DISABLED = true,
+    PLAYER_REGEN_ENABLED = true,
+  }
+  
+  for eventName in pairs(addon._registeredEvents) do
+    if not (addon.EventsToRegister and addon.EventsToRegister[eventName]) and not keep[eventName] then
+      frame:UnregisterEvent(eventName)
+      addon._registeredEvents[eventName] = nil
+    end
   end
-
-  frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
-  frame:RegisterEvent("ITEM_DATA_LOAD_RESULT")
-  frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-  frame:RegisterEvent("PLAYER_REGEN_ENABLED")
+  
+  for eventName in pairs(addon.EventsToRegister or {}) do
+    frame:RegisterEvent(eventName)
+    addon._registeredEvents[eventName] = true
+  end
+  
+  for eventName in pairs(keep) do
+    frame:RegisterEvent(eventName)
+    addon._registeredEvents[eventName] = true
+  end
 end
 
 function addon:HandleEvent(eventName, ...)
@@ -925,19 +958,20 @@ function addon:HandleEvent(eventName, ...)
 
     args.unit = unit
     args.spellID = spellID
+    local ctx = addon:MakeContext(spellID)
 
     local listForSpell = bucket.bySpellID and bucket.bySpellID[spellID]
     if listForSpell then
       for _, trig in ipairs(listForSpell) do
         if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-          addon:FireTrigger(trig, addon:MakeContext(spellID))
+          addon:FireTrigger(trig, ctx)
         end
       end
     end
 
     for _, trig in ipairs(bucket.list or {}) do
       if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-        addon:FireTrigger(trig, addon:MakeContext(spellID))
+        addon:FireTrigger(trig, ctx)
       end
     end
 
@@ -993,7 +1027,13 @@ function addon:HandleEvent(eventName, ...)
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    local eventInfo = { CombatLogGetCurrentEventInfo() }
+    addon._combatLogInfo = addon._combatLogInfo or {}
+    local eventInfo = addon._combatLogInfo
+    eventInfo[1], eventInfo[2], eventInfo[3], eventInfo[4], eventInfo[5], eventInfo[6], eventInfo[7],
+    eventInfo[8], eventInfo[9], eventInfo[10], eventInfo[11], eventInfo[12], eventInfo[13], eventInfo[14],
+    eventInfo[15], eventInfo[16], eventInfo[17], eventInfo[18], eventInfo[19], eventInfo[20], eventInfo[21] =
+      CombatLogGetCurrentEventInfo()
+
     local subevent = eventInfo[2]
     local sourceGUID = eventInfo[4]
     local destName = eventInfo[9]
