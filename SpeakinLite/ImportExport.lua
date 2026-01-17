@@ -1,8 +1,9 @@
--- SpeakinLite - Import/Export System
+-- EmoteControl - Import/Export System
 -- Allows users to share trigger configurations
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 -- Base64 encoding/decoding (simple implementation)
 local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
@@ -176,7 +177,7 @@ local function JsonDecode(str)
         elseif n == "t" then table.insert(out, "\t"); i = i + 2
         elseif n == "u" then
           local hex = str:sub(i + 2, i + 5)
-          if not hex:match("^[0-9a-fA-F]+$") then
+          if #hex ~= 4 or not hex:match("^[0-9a-fA-F]+$") then
             return nil, "Invalid unicode escape"
           end
           local code = tonumber(hex, 16) or 0
@@ -198,7 +199,7 @@ local function JsonDecode(str)
   end
 
   local function parseNumber()
-    local s, e = str:find("^%-?%d+%.?%d*[eE]?[%+%-]?%d*", i)
+    local s, e = str:find("%-?%d+%.?%d*[eE]?[%+%-]?%d*", i)
     if not s then return nil, "Invalid number" end
     local num = tonumber(str:sub(s, e))
     i = e + 1
@@ -441,7 +442,7 @@ function addon:OpenImportExportUI()
   local frame = addon._importExportFrame
   
   if not frame then
-    frame = CreateFrame("Frame", "SpeakinLiteImportExportFrame", UIParent, "BasicFrameTemplateWithInset")
+    frame = CreateFrame("Frame", "EmoteControlImportExportFrame", UIParent, "BasicFrameTemplateWithInset")
     addon._importExportFrame = frame
     
     frame:SetSize(600, 400)
@@ -453,7 +454,7 @@ function addon:OpenImportExportUI()
     frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
     frame.title = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     frame.title:SetPoint("TOP", 0, -5)
-    frame.title:SetText("SpeakinLite - Import/Export")
+    frame.title:SetText("Emote Control - Import/Export")
     
     -- Export section
     local exportLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")

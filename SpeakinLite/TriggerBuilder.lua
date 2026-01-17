@@ -1,8 +1,9 @@
--- SpeakinLite - Trigger Builder
+-- EmoteControl - Trigger Builder
 -- Visual interface for creating custom triggers without editing Lua
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 local builderFrame = nil
 local currentTrigger = nil
@@ -27,7 +28,7 @@ function addon:CreateTriggerBuilder()
     return
   end
 
-  local frame = CreateFrame("Frame", "SpeakinLiteTriggerBuilder", UIParent, "BasicFrameTemplateWithInset")
+  local frame = CreateFrame("Frame", "EmoteControlTriggerBuilder", UIParent, "BasicFrameTemplateWithInset")
   frame:SetSize(600, 500)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
@@ -256,8 +257,9 @@ end
 
 function addon:RegisterCustomTrigger(trigger)
   -- Create a custom pack for this trigger
+  local packId = "custom:" .. tostring(trigger.id)
   local pack = {
-    id = "custom",
+    id = packId,
     name = "Custom_" .. trigger.id,
     triggers = {trigger}
   }
