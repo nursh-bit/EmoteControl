@@ -1,5 +1,12 @@
 # Emote Control Changelog
 
+## Version 0.9.4 - Race Pack Pass
+
+### New Features
+- Race pack messages normalized to 5-15 lines per trigger.
+- Goblin pack now includes Rocket Barrage trigger.
+- Fixed Human combat end trigger configuration.
+
 ## Version 0.9.3 - Packs UX Improvements
 
 ### New Features

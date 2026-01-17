@@ -57,6 +57,7 @@ EmoteControl:RegisterPack({
         "collapses, returning to the cycle.",
         "succumbs, the moon's light dimming.",
         "falls in battle, ancient pride intact.",
+        "dies beneath the stars, Elune's gaze unbroken.",
       },
     },
     
@@ -72,6 +73,7 @@ EmoteControl:RegisterPack({
         "returns, moonlight restored.",
         "stands once more, the Goddess watches still.",
         "revives, ancient resilience enduring.",
+        "awakens, moonlit strength returning.",
       },
     },
     
@@ -105,6 +107,7 @@ EmoteControl:RegisterPack({
         "listens to the whispers of the trees.",
         "senses the balance of nature here.",
         "connects with the land, ancient bond renewed.",
+        "breathes deeply, the forest's memory stirring.",
       },
     },
 
@@ -119,6 +122,7 @@ EmoteControl:RegisterPack({
         "rests peacefully, blessed by moonlight.",
         "meditates under the stars, ancient peace.",
         "finds solace in the night, as their ancestors did.",
+        "settles into quiet reverence, moonlight soothing.",
       },
     },
 
@@ -133,6 +137,7 @@ EmoteControl:RegisterPack({
         "honors this achievement in the old ways.",
         "stands proud, another chapter in their long story.",
         "marks this victory, as Sentinels have for ages.",
+        "accepts this honor with serene pride.",
       },
     },
 
@@ -148,6 +153,7 @@ EmoteControl:RegisterPack({
         "summons their companion, bond forged over centuries.",
         "whistles softly, mount answering the call.",
         "beckons their steed with Darnassian words.",
+        "signals their mount, swift and silent.",
       },
     },
 
@@ -162,6 +168,7 @@ EmoteControl:RegisterPack({
         "transitions to wisp form, ancient cycle continues.",
         "fades into a wisp of light.",
         "transforms, whisper on the wind.",
+        "drifts as a wisp, moonlight carrying their spirit.",
       },
     },
   },

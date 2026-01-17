@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "collapses, systems offline.",
         "ceases function, awaiting reboot.",
         "experiences catastrophic malfunction.",
+        "powers down, diagnostics pending.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "restarts, backup protocols engaged.",
         "returns to function, repaired.",
         "revives, mechanical resilience.",
+        "systems restart, functionality restored.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Analyzing combat data. Processing...",
         "Combat protocols updated. Efficiency increased.",
         "Running diagnostics. Performance optimized.",
+        "Analysis complete. Adjusting for maximum output.",
       },
     },
     
@@ -98,6 +101,7 @@ EmoteControl:RegisterPack({
         "Failsafe protocols online. Restoring systems.",
         "Emergency repairs initiated.",
         "Activating backup systems!",
+        "Failsafe engaged. Systems stabilizing.",
       },
     },
   },

@@ -57,6 +57,7 @@ EmoteControl:RegisterPack({
         "collapses, draconic strength fading.",
         "succumbs, even dragons can fall.",
         "falls, scales dimming.",
+        "falls, dragonfire flickering out.",
       },
     },
     
@@ -72,6 +73,7 @@ EmoteControl:RegisterPack({
         "returns, dragonflights' gift renewed.",
         "stands once more, wings spread anew.",
         "revives, draconic power restored.",
+        "awakens, embers of power reignited.",
       },
     },
     
@@ -119,6 +121,7 @@ EmoteControl:RegisterPack({
         "soars gracefully, true dragon flight.",
         "launches into the air, wings powerful.",
         "flies with the grace of dragonkind.",
+        "beats their wings and climbs skyward.",
       },
     },
 
@@ -133,6 +136,7 @@ EmoteControl:RegisterPack({
         "celebrates with draconic dignity.",
         "spreads their wings in victory.",
         "honors this achievement, dragonflights approve.",
+        "basks in victory, wings held high.",
       },
     },
 
@@ -148,6 +152,7 @@ EmoteControl:RegisterPack({
         "empowers their spell with dragon essence.",
         "weaves magic as only Dracthyr can.",
         "focuses draconic power into the spell.",
+        "draws on draconic might to empower the cast.",
       },
     },
 
@@ -177,6 +182,7 @@ EmoteControl:RegisterPack({
         "rests, draconic essence recharging.",
         "curls up comfortably, dragon-style.",
         "finds repose, as dragons do.",
+        "rests quietly, scales cooling and calm.",
       },
     },
   },

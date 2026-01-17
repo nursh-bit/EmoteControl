@@ -53,6 +53,7 @@ EmoteControl:RegisterPack({
         "falls, even stone can break.",
         "collapses, the titans witness.",
         "meets their end, stone-still.",
+        "falls, dust settling where they stood.",
       },
     },
     
@@ -68,6 +69,7 @@ EmoteControl:RegisterPack({
         "stands again, stone-forged anew.",
         "returns, the titans' work endures.",
         "revives, unbreakable as always.",
+        "rises, stone and spark renewed.",
       },
     },
     
@@ -83,6 +85,7 @@ EmoteControl:RegisterPack({
         "Channeling earthen might.",
         "Azerite engaged. Stone and crystal!",
         "Titan-forged power unleashed!",
+        "Azerite surges through their core.",
       },
     },
   },
