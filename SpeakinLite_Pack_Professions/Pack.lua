@@ -1,11 +1,11 @@
--- SpeakinLite - Professions Pack
+-- EmoteControl - Professions Pack
 -- Triggers for profession-related activities
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "professions",
   name = "Professions Pack",
   defaults = { category = "flavor", intensity = 1 },
