@@ -1,10 +1,10 @@
--- SpeakinLite - Rogue Pack
+-- EmoteControl - Rogue Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "rogue",
   name = "Rogue Pack",
   defaults = { class = "ROGUE", unit = "player" },

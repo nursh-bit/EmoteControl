@@ -3,7 +3,7 @@
 ## Notes: Lightweight speech/announcement addon with modular phrase packs.
 ## Author: Nursh
 ## Version: 0.9.0
-## SavedVariables: SpeakinLiteDB
+## SavedVariables: EmoteControlDB, SpeakinLiteDB
 
 Utils.lua
 Registry.lua
