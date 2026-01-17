@@ -1,10 +1,10 @@
--- SpeakinLite - Dwarf Race Pack
+-- EmoteControl - Dwarf Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_dwarf",
   name = "Dwarf Race Pack",
   defaults = { race = "DWARF" },

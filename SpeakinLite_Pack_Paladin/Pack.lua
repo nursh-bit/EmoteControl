@@ -1,10 +1,10 @@
--- SpeakinLite - Paladin Pack
+-- EmoteControl - Paladin Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "paladin",
   name = "Paladin Pack",
   defaults = { class = "PALADIN", unit = "player" },

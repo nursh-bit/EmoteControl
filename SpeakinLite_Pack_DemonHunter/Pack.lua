@@ -1,10 +1,10 @@
--- SpeakinLite - Demon Hunter Pack
+-- EmoteControl - Demon Hunter Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "demonhunter",
   name = "Demon Hunter Pack",
   defaults = { class = "DEMONHUNTER", unit = "player" },

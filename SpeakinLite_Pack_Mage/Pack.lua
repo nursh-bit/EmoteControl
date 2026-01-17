@@ -1,13 +1,13 @@
--- SpeakinLite - Mage Pack
+-- EmoteControl - Mage Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
 -- Notes:
 -- cooldown is per trigger, in seconds. Use higher cooldowns for rotation spells to avoid spam.
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "mage",
   name = "Mage Pack",
   triggers = {

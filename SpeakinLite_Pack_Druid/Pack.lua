@@ -1,10 +1,10 @@
--- SpeakinLite - Druid Pack
+-- EmoteControl - Druid Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "druid",
   name = "Druid Pack",
   defaults = { class = "DRUID", unit = "player" },

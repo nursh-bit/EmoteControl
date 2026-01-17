@@ -1,10 +1,10 @@
--- SpeakinLite - Orc Race Pack
+-- EmoteControl - Orc Race Pack
 
-if not SpeakinLite or type(SpeakinLite.RegisterPack) ~= "function" then
+if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
   return
 end
 
-SpeakinLite:RegisterPack({
+EmoteControl:RegisterPack({
   id = "race_orc",
   name = "Orc Race Pack",
   defaults = { race = "ORC" },

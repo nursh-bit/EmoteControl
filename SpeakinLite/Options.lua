@@ -1,8 +1,9 @@
--- SpeakinLite - Options UI
+-- EmoteControl - Options UI
 -- Works with Interface Options (still supported) and provides shortcuts via /sl options, /sl packs, /sl editor.
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 local function MakeTitle(parent, text)
   local title = parent:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
@@ -71,40 +72,40 @@ local function BuildMainPanel()
   local panel = CreateFrame("Frame")
   panel.name = "Emote Control"
 
-  local title = MakeTitle(panel, "SpeakinLite")
+  local title = MakeTitle(panel, "Emote Control")
   local desc = MakePara(panel, title, "Lightweight speech/announcement addon with modular phrase packs. Use /sl help for commands.")
 
-  local cbEnabled = MakeCheckbox(panel, "SpeakinLite_CB_Enabled", desc, "Enable SpeakinLite", "Master toggle.")
+  local cbEnabled = MakeCheckbox(panel, "EmoteControl_CB_Enabled", desc, "Enable Emote Control", "Master toggle.")
 
   local outputHeader = MakeSubTitle(panel, cbEnabled, "Output")
-  local ddChannel = MakeDropdown(panel, "SpeakinLite_DD_Channel", outputHeader, "Default channel", 200)
-  local cbFallback = MakeCheckbox(panel, "SpeakinLite_CB_Fallback", ddChannel, "If SAY/YELL blocked, use EMOTE instead", "Recommended On. EMOTE works everywhere!")
+  local ddChannel = MakeDropdown(panel, "EmoteControl_DD_Channel", outputHeader, "Default channel", 200)
+  local cbFallback = MakeCheckbox(panel, "EmoteControl_CB_Fallback", ddChannel, "If SAY/YELL blocked, use EMOTE instead", "Recommended On. EMOTE works everywhere!")
 
   local spamHeader = MakeSubTitle(panel, cbFallback, "Spam control")
-  local sCooldown = MakeSlider(panel, "SpeakinLite_SL_Cooldown", spamHeader, "Global cooldown (seconds)", 0, 60, 1)
-  local sMaxPerMin = MakeSlider(panel, "SpeakinLite_SL_MaxPerMin", sCooldown, "Max messages per minute", 0, 60, 1)
-  local ddRotation = MakeDropdown(panel, "SpeakinLite_DD_Rotation", sMaxPerMin, "Rotation protection", 200)
+  local sCooldown = MakeSlider(panel, "EmoteControl_SL_Cooldown", spamHeader, "Global cooldown (seconds)", 0, 60, 1)
+  local sMaxPerMin = MakeSlider(panel, "EmoteControl_SL_MaxPerMin", sCooldown, "Max messages per minute", 0, 60, 1)
+  local ddRotation = MakeDropdown(panel, "EmoteControl_DD_Rotation", sMaxPerMin, "Rotation protection", 200)
 
   local triggerHeader = MakeSubTitle(panel, ddRotation, "Triggers")
-  local cbSpell = MakeCheckbox(panel, "SpeakinLite_CB_Spell", triggerHeader, "Enable spell triggers", "Announce spell casts (UNIT_SPELLCAST_SUCCEEDED).")
-  local cbNonSpell = MakeCheckbox(panel, "SpeakinLite_CB_NonSpell", cbSpell, "Enable non-spell triggers", "Announce combat, zone, death, spec changes, etc.")
-  local cbOnlyLearned = MakeCheckbox(panel, "SpeakinLite_CB_Learned", cbNonSpell, "Only announce learned spells", "Recommended On. Extra safety for edge cases.")
+  local cbSpell = MakeCheckbox(panel, "EmoteControl_CB_Spell", triggerHeader, "Enable spell triggers", "Announce spell casts (UNIT_SPELLCAST_SUCCEEDED).")
+  local cbNonSpell = MakeCheckbox(panel, "EmoteControl_CB_NonSpell", cbSpell, "Enable non-spell triggers", "Announce combat, zone, death, spec changes, etc.")
+  local cbOnlyLearned = MakeCheckbox(panel, "EmoteControl_CB_Learned", cbNonSpell, "Only announce learned spells", "Recommended On. Extra safety for edge cases.")
 
   local catsHeader = MakeSubTitle(panel, cbOnlyLearned, "Categories")
-  local cbCatRotation = MakeCheckbox(panel, "SpeakinLite_CB_CatRotation", catsHeader, "Rotation", "Spell rotation / frequent casts")
-  local cbCatUtility = MakeCheckbox(panel, "SpeakinLite_CB_CatUtility", cbCatRotation, "Utility", "Summons, teleports, helpers")
-  local cbCatDef = MakeCheckbox(panel, "SpeakinLite_CB_CatDef", cbCatUtility, "Defensive", "Shields, immunities, mitigations")
-  local cbCatMove = MakeCheckbox(panel, "SpeakinLite_CB_CatMove", cbCatDef, "Movement", "Dashes, blinks, speed")
-  local cbCatCDs = MakeCheckbox(panel, "SpeakinLite_CB_CatCDs", cbCatMove, "Cooldowns", "Big cooldown buttons")
-  local cbCatFlavor = MakeCheckbox(panel, "SpeakinLite_CB_CatFlavor", cbCatCDs, "Flavor", "Extra jokes / lore / vibes")
+  local cbCatRotation = MakeCheckbox(panel, "EmoteControl_CB_CatRotation", catsHeader, "Rotation", "Spell rotation / frequent casts")
+  local cbCatUtility = MakeCheckbox(panel, "EmoteControl_CB_CatUtility", cbCatRotation, "Utility", "Summons, teleports, helpers")
+  local cbCatDef = MakeCheckbox(panel, "EmoteControl_CB_CatDef", cbCatUtility, "Defensive", "Shields, immunities, mitigations")
+  local cbCatMove = MakeCheckbox(panel, "EmoteControl_CB_CatMove", cbCatDef, "Movement", "Dashes, blinks, speed")
+  local cbCatCDs = MakeCheckbox(panel, "EmoteControl_CB_CatCDs", cbCatMove, "Cooldowns", "Big cooldown buttons")
+  local cbCatFlavor = MakeCheckbox(panel, "EmoteControl_CB_CatFlavor", cbCatCDs, "Flavor", "Extra jokes / lore / vibes")
 
   local btnAnchor = cbCatFlavor
-  local btnPacks = CreateFrame("Button", "SpeakinLite_Btn_Packs", panel, "UIPanelButtonTemplate")
+  local btnPacks = CreateFrame("Button", "EmoteControl_Btn_Packs", panel, "UIPanelButtonTemplate")
   btnPacks:SetSize(160, 22)
   btnPacks:SetPoint("TOPLEFT", btnAnchor, "BOTTOMLEFT", 0, -18)
   btnPacks:SetText("Open Packs")
 
-  local btnEditor = CreateFrame("Button", "SpeakinLite_Btn_Editor", panel, "UIPanelButtonTemplate")
+  local btnEditor = CreateFrame("Button", "EmoteControl_Btn_Editor", panel, "UIPanelButtonTemplate")
   btnEditor:SetSize(160, 22)
   btnEditor:SetPoint("LEFT", btnPacks, "RIGHT", 10, 0)
   btnEditor:SetText("Open Trigger Editor")
@@ -189,14 +190,14 @@ local function BuildMainPanel()
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     local v = addon:ClampNumber(tonumber(value) or 6, 0, 60)
     theDb.globalCooldown = v
-    _G["SpeakinLite_SL_CooldownText"]:SetText("Global cooldown (seconds): " .. v)
+    _G["EmoteControl_SL_CooldownText"]:SetText("Global cooldown (seconds): " .. v)
   end)
 
   sMaxPerMin:SetScript("OnValueChanged", function(self, value)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     local v = addon:ClampNumber(tonumber(value) or 12, 0, 60)
     theDb.maxPerMinute = v
-    _G["SpeakinLite_SL_MaxPerMinText"]:SetText("Max messages per minute: " .. v)
+    _G["EmoteControl_SL_MaxPerMinText"]:SetText("Max messages per minute: " .. v)
   end)
 
   UIDropDownMenu_Initialize(ddChannel, function(self, level)
@@ -264,9 +265,9 @@ end
 local function BuildPacksPanel()
   local panel = CreateFrame("Frame")
   panel.name = "Packs"
-  panel.parent = "SpeakinLite"
+  panel.parent = "Emote Control"
 
-  local title = MakeTitle(panel, "SpeakinLite Packs")
+  local title = MakeTitle(panel, "Emote Control Packs")
   local desc = MakePara(panel, title, "Enable or disable phrase packs. Changes apply immediately.")
 
   local checkboxes = {}
@@ -293,7 +294,7 @@ local function BuildPacksPanel()
 
     local anchor = desc
     for i, row in ipairs(sorted) do
-      local cb = MakeCheckbox(panel, "SpeakinLite_PackCB_" .. i, anchor, row.name .. " (" .. row.id .. ")", "")
+      local cb = MakeCheckbox(panel, "EmoteControl_PackCB_" .. i, anchor, row.name .. " (" .. row.id .. ")", "")
       cb:SetChecked(theDb.packEnabled[row.id] ~= false)
       cb:SetScript("OnClick", function(self)
         theDb.packEnabled[row.id] = self:GetChecked() and true or false
@@ -352,7 +353,7 @@ function addon:OpenOptions()
 
   -- Last resort: try directly opening settings
   if Settings then
-    local ok = pcall(Settings.OpenToCategory, "SpeakinLite")
+    local ok = pcall(Settings.OpenToCategory, "Emote Control")
     if ok then return end
   end
 

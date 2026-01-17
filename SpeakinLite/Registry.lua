@@ -1,8 +1,9 @@
--- SpeakinLite - Pack Registry and Trigger Index
--- Packs are separate LoadOnDemand addons that call SpeakinLite:RegisterPack({...}).
+-- EmoteControl - Pack Registry and Trigger Index
+-- Packs are separate LoadOnDemand addons that call EmoteControl:RegisterPack({...}).
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or SpeakinLite or {}
+SpeakinLite = EmoteControl
+local addon = EmoteControl
 
 addon.Packs = addon.Packs or {}
 addon.TriggersByEvent = addon.TriggersByEvent or {}
@@ -13,7 +14,7 @@ addon._spellNameCache = addon._spellNameCache or {}
 
 function addon:IsPackEnabled(packId)
   if type(packId) ~= "string" or packId == "" then return true end
-  local theDb = rawget(_G, "SpeakinLiteDB")
+  local theDb = rawget(_G, "EmoteControlDB") or rawget(_G, "SpeakinLiteDB")
   if type(theDb) ~= "table" then return true end
   local pe = theDb.packEnabled
   if type(pe) ~= "table" then return true end

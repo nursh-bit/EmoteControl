@@ -1,8 +1,8 @@
--- SpeakinLite - Daily Activities Pack
+-- EmoteControl - Daily Activities Pack
 -- Non-combat flavor triggers for everyday activities
 
-SpeakinLite = SpeakinLite or {}
-local addon = SpeakinLite
+EmoteControl = EmoteControl or {}
+local addon = EmoteControl
 
 local pack = {
   name = "DailyActivities",
