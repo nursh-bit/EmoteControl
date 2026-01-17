@@ -1098,8 +1098,7 @@ local function PrintHelp()
   addon:Print("/sl cooldown <seconds> - Set global cooldown")
 end
 
-SLASH_EMOTECONTROL1 = "/sl"
-SlashCmdList["EMOTECONTROL"] = function(msg)
+local function HandleSlash(msg)
   msg = msg or ""
   local cmd, rest = msg:match("^(%S+)%s*(.-)%s*$")
   cmd = addon:SafeLower(cmd)
@@ -1257,6 +1256,13 @@ SlashCmdList["EMOTECONTROL"] = function(msg)
 
   PrintHelp()
 end
+
+SLASH_EMOTECONTROL1 = "/sl"
+SLASH_EMOTECONTROL2 = "/emotecontrol"
+SlashCmdList["EMOTECONTROL"] = HandleSlash
+
+SLASH_SPEAKINLITE1 = "/speakinlite"
+SlashCmdList["SPEAKINLITE"] = HandleSlash
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then

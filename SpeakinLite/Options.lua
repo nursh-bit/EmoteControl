@@ -355,6 +355,8 @@ function addon:OpenOptions()
   if Settings then
     local ok = pcall(Settings.OpenToCategory, "Emote Control")
     if ok then return end
+    ok = pcall(Settings.OpenToCategory, "SpeakinLite")
+    if ok then return end
   end
 
   addon:Print("Options UI not available. Use /sl help for commands or check Interface Options manually.")
