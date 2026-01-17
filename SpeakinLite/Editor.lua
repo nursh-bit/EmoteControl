@@ -1,0 +1,382 @@
+-- SpeakinLite - Trigger Editor UI
+-- Simple in-game editor for per-trigger overrides (enabled/cooldown/channel/messages)
+
+SpeakinLite = SpeakinLite or {}
+local addon = SpeakinLite
+
+local frame
+local selectedId
+
+local function EnsureOverride(triggerId)
+  local db = addon:GetDB()
+  if type(db) ~= "table" then return nil end
+  db.triggerOverrides = db.triggerOverrides or {}
+  db.triggerOverrides[triggerId] = db.triggerOverrides[triggerId] or {}
+  return db.triggerOverrides[triggerId]
+end
+
+local function GetAllTriggersFiltered(search)
+  local list = {}
+  local s = (type(search) == "string" and search:lower()) or ""
+
+  for id, trig in pairs(addon.TriggerById or {}) do
+    if type(id) == "string" and type(trig) == "table" then
+      local hay = (id .. " " .. tostring(trig.packId or "") .. " " .. tostring(trig.category or "") .. " " .. tostring(trig._spellID or "") .. " " .. tostring((trig.conditions or {}).spellName or ""))
+      if s == "" or hay:lower():find(s, 1, true) then
+        table.insert(list, { id = id, trig = trig })
+      end
+    end
+  end
+
+  table.sort(list, function(a, b)
+    return a.id < b.id
+  end)
+
+  return list
+end
+
+local function SplitLines(text)
+  local lines = {}
+  if type(text) ~= "string" then return lines end
+  for line in text:gmatch("[^\r\n]+") do
+    line = line:gsub("^%s+", ""):gsub("%s+$", "")
+    if line ~= "" then
+      table.insert(lines, line)
+    end
+  end
+  return lines
+end
+
+local function JoinLines(lines)
+  if type(lines) ~= "table" then return "" end
+  return table.concat(lines, "\n")
+end
+
+local function PrettyLabel(trig)
+  if type(trig) ~= "table" then return "" end
+  local parts = {}
+  if trig.packId then table.insert(parts, "[" .. trig.packId .. "]") end
+  if trig.category then table.insert(parts, trig.category) end
+  if trig._spellID then
+    local name = addon:GetSpellName(trig._spellID)
+    if name then table.insert(parts, name) else table.insert(parts, tostring(trig._spellID)) end
+  end
+  if trig.event then table.insert(parts, trig.event) end
+  return table.concat(parts, " ")
+end
+
+local function MakeBackdrop(f)
+  f:SetBackdrop({
+    bgFile = "Interface/Tooltips/UI-Tooltip-Background",
+    edgeFile = "Interface/Tooltips/UI-Tooltip-Border",
+    tile = true,
+    tileSize = 16,
+    edgeSize = 16,
+    insets = { left = 4, right = 4, top = 4, bottom = 4 },
+  })
+  f:SetBackdropColor(0, 0, 0, 0.9)
+end
+
+local function CreateDropdown(parent, name, items, onChanged)
+  local dd = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
+  dd.items = items
+  dd.onChanged = onChanged
+
+  UIDropDownMenu_Initialize(dd, function(self, level)
+    for _, it in ipairs(self.items or {}) do
+      local info = UIDropDownMenu_CreateInfo()
+      info.text = it.label
+      info.value = it.value
+      info.func = function()
+        UIDropDownMenu_SetSelectedValue(self, it.value)
+        if self.onChanged then self.onChanged(it.value) end
+      end
+      UIDropDownMenu_AddButton(info, level)
+    end
+  end)
+
+  function dd:SetValue(v)
+    UIDropDownMenu_SetSelectedValue(self, v)
+    local found
+    for _, it in ipairs(self.items or {}) do
+      if it.value == v then found = it.label break end
+    end
+    UIDropDownMenu_SetText(self, found or tostring(v or ""))
+  end
+
+  return dd
+end
+
+local function RefreshDetails()
+  if not frame then return end
+  local trig = selectedId and addon.TriggerById and addon.TriggerById[selectedId]
+  if not trig then
+    frame.detailsTitle:SetText("Select a trigger")
+    frame.enabled:SetChecked(false)
+    frame.cooldown:SetText("")
+    frame.channelDD:SetValue("")
+    frame.messagesBox:SetText("")
+    return
+  end
+
+  frame.detailsTitle:SetText(selectedId .. "\n" .. PrettyLabel(trig))
+
+  local ov = EnsureOverride(selectedId) or {}
+  frame.enabled:SetChecked(ov.enabled ~= false)
+  frame.cooldown:SetText(tostring(ov.cooldown or ""))
+  frame.channelDD:SetValue(ov.channel or "")
+
+  local msgs = (ov.messages and #ov.messages > 0) and ov.messages or trig.messages or {}
+  frame.messagesBox:SetText(JoinLines(msgs))
+end
+
+local function BuildList()
+  if not frame then return end
+
+  local items = GetAllTriggersFiltered(frame.searchBox:GetText())
+  frame._items = items
+
+  FauxScrollFrame_Update(frame.scroll, #items, 14, 16)
+
+  local offset = FauxScrollFrame_GetOffset(frame.scroll)
+  for i = 1, 14 do
+    local row = frame.rows[i]
+    local idx = offset + i
+    local item = items[idx]
+
+    if item then
+      row:Show()
+      row.id = item.id
+      row.text:SetText(item.id)
+      row.sub:SetText(PrettyLabel(item.trig))
+      if selectedId == item.id then
+        row.bg:Show()
+      else
+        row.bg:Hide()
+      end
+    else
+      row:Hide()
+    end
+  end
+end
+
+function addon:OpenEditor()
+  if frame and frame:IsShown() then
+    frame:Hide()
+    return
+  end
+
+  if not frame then
+    frame = CreateFrame("Frame", "SpeakinLiteEditorFrame", UIParent)
+    frame:SetSize(840, 520)
+    frame:SetPoint("CENTER")
+    frame:SetFrameStrata("DIALOG")
+    frame:SetMovable(true)
+    frame:EnableMouse(true)
+    frame:RegisterForDrag("LeftButton")
+    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
+    MakeBackdrop(frame)
+
+    local title = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", 16, -12)
+    title:SetText("Emote Control - Trigger Editor")
+
+    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
+    close:SetPoint("TOPRIGHT", -4, -4)
+
+    local searchLabel = frame:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    searchLabel:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -12)
+    searchLabel:SetText("Search")
+
+    local searchBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+    searchBox:SetSize(260, 20)
+    searchBox:SetPoint("LEFT", searchLabel, "RIGHT", 10, 0)
+    searchBox:SetAutoFocus(false)
+    searchBox:SetScript("OnTextChanged", function()
+      BuildList()
+    end)
+    frame.searchBox = searchBox
+
+    local leftPane = CreateFrame("Frame", nil, frame)
+    leftPane:SetPoint("TOPLEFT", searchLabel, "BOTTOMLEFT", 0, -10)
+    leftPane:SetSize(380, 420)
+    MakeBackdrop(leftPane)
+
+    local scroll = CreateFrame("ScrollFrame", "SpeakinLiteEditorScroll", leftPane, "FauxScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 0, -6)
+    scroll:SetPoint("BOTTOMRIGHT", -28, 6)
+    scroll:SetScript("OnVerticalScroll", function(self, offset)
+      FauxScrollFrame_OnVerticalScroll(self, offset, 16, BuildList)
+    end)
+    frame.scroll = scroll
+
+    frame.rows = {}
+    for i = 1, 14 do
+      local row = CreateFrame("Button", nil, leftPane)
+      row:SetSize(350, 16)
+      row:SetPoint("TOPLEFT", 8, -8 - (i - 1) * 28)
+
+      local bg = row:CreateTexture(nil, "BACKGROUND")
+      bg:SetAllPoints()
+      bg:SetColorTexture(0.2, 0.4, 0.8, 0.25)
+      bg:Hide()
+      row.bg = bg
+
+      local text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+      text:SetPoint("TOPLEFT", 0, 0)
+      text:SetText("")
+      row.text = text
+
+      local sub = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+      sub:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -2)
+      sub:SetText("")
+      row.sub = sub
+
+      row:SetScript("OnClick", function(self)
+        selectedId = self.id
+        RefreshDetails()
+        BuildList()
+      end)
+
+      frame.rows[i] = row
+    end
+
+    local rightPane = CreateFrame("Frame", nil, frame)
+    rightPane:SetPoint("TOPLEFT", leftPane, "TOPRIGHT", 12, 0)
+    rightPane:SetPoint("BOTTOMRIGHT", -16, 16)
+    MakeBackdrop(rightPane)
+
+    local detailsTitle = rightPane:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    detailsTitle:SetPoint("TOPLEFT", 10, -10)
+    detailsTitle:SetWidth(400)
+    detailsTitle:SetJustifyH("LEFT")
+    detailsTitle:SetText("Select a trigger")
+    frame.detailsTitle = detailsTitle
+
+    local enabled = CreateFrame("CheckButton", nil, rightPane, "UICheckButtonTemplate")
+    enabled:SetPoint("TOPLEFT", detailsTitle, "BOTTOMLEFT", -2, -10)
+    enabled.Text:SetText("Enabled")
+    frame.enabled = enabled
+
+    local cdLabel = rightPane:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    cdLabel:SetPoint("TOPLEFT", enabled, "BOTTOMLEFT", 2, -10)
+    cdLabel:SetText("Cooldown override (seconds)")
+
+    local cooldown = CreateFrame("EditBox", nil, rightPane, "InputBoxTemplate")
+    cooldown:SetSize(80, 20)
+    cooldown:SetPoint("LEFT", cdLabel, "RIGHT", 10, 0)
+    cooldown:SetAutoFocus(false)
+    cooldown:SetNumeric(true)
+    frame.cooldown = cooldown
+
+    local chLabel = rightPane:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    chLabel:SetPoint("TOPLEFT", cdLabel, "BOTTOMLEFT", 0, -14)
+    chLabel:SetText("Channel override")
+
+    local channelDD = CreateDropdown(rightPane, "SpeakinLiteEditorChannelDD", {
+      { label = "(use global)", value = "" },
+      { label = "Self", value = "SELF" },
+      { label = "Party", value = "PARTY" },
+      { label = "Raid", value = "RAID" },
+      { label = "Instance", value = "INSTANCE" },
+      { label = "Say", value = "SAY" },
+      { label = "Yell", value = "YELL" },
+      { label = "Emote", value = "EMOTE" },
+    }, function(v)
+      -- handled on save
+    end)
+    channelDD:SetPoint("TOPLEFT", chLabel, "BOTTOMLEFT", -16, -4)
+    channelDD:SetValue("")
+    frame.channelDD = channelDD
+
+    local msgLabel = rightPane:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    msgLabel:SetPoint("TOPLEFT", channelDD, "BOTTOMLEFT", 16, -12)
+    msgLabel:SetText("Phrases (one per line)")
+
+    local boxFrame = CreateFrame("Frame", nil, rightPane)
+    boxFrame:SetPoint("TOPLEFT", msgLabel, "BOTTOMLEFT", 0, -6)
+    boxFrame:SetPoint("BOTTOMRIGHT", -10, 54)
+    MakeBackdrop(boxFrame)
+
+    local scrollMsg = CreateFrame("ScrollFrame", "SpeakinLiteEditorMsgScroll", boxFrame, "UIPanelScrollFrameTemplate")
+    scrollMsg:SetPoint("TOPLEFT", 6, -6)
+    scrollMsg:SetPoint("BOTTOMRIGHT", -26, 6)
+
+    local edit = CreateFrame("EditBox", nil, scrollMsg)
+    edit:SetMultiLine(true)
+    edit:SetAutoFocus(false)
+    edit:SetFontObject(ChatFontNormal)
+    edit:SetWidth(360)
+    edit:SetText("")
+    edit:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    scrollMsg:SetScrollChild(edit)
+    frame.messagesBox = edit
+
+    local save = CreateFrame("Button", nil, rightPane, "UIPanelButtonTemplate")
+    save:SetSize(120, 22)
+    save:SetPoint("BOTTOMLEFT", 10, 16)
+    save:SetText("Save")
+    save:SetScript("OnClick", function()
+      if not selectedId then return end
+      local trig = addon.TriggerById and addon.TriggerById[selectedId]
+      if not trig then return end
+
+      local ov = EnsureOverride(selectedId)
+      if not ov then return end
+
+      ov.enabled = enabled:GetChecked() and true or false
+
+      local cd = tonumber(cooldown:GetText())
+      if cd and cd > 0 then
+        ov.cooldown = cd
+      else
+        ov.cooldown = nil
+      end
+
+      local ch = UIDropDownMenu_GetSelectedValue(channelDD)
+      ch = addon:NormalizeChannel(ch) or ch
+      if type(ch) == "string" and ch ~= "" then
+        ov.channel = string.upper(ch)
+      else
+        ov.channel = nil
+      end
+
+      local lines = SplitLines(edit:GetText())
+      if #lines > 0 then
+        ov.messages = lines
+      else
+        ov.messages = nil
+      end
+
+      print("SpeakinLite: saved override for " .. selectedId)
+      RefreshDetails()
+    end)
+
+    local reset = CreateFrame("Button", nil, rightPane, "UIPanelButtonTemplate")
+    reset:SetSize(120, 22)
+    reset:SetPoint("LEFT", save, "RIGHT", 10, 0)
+    reset:SetText("Reset")
+    reset:SetScript("OnClick", function()
+      local db = addon:GetDB()
+      if not (selectedId and type(db) == "table" and type(db.triggerOverrides) == "table") then return end
+      db.triggerOverrides[selectedId] = nil
+      RefreshDetails()
+    end)
+
+    local hint = rightPane:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    hint:SetPoint("BOTTOMLEFT", reset, "TOPLEFT", 0, 10)
+    hint:SetWidth(400)
+    hint:SetJustifyH("LEFT")
+    hint:SetText("Tokens: <player> <spell> <target> <zone> <spec> <class> <instance> <race> <health%> <power%> <combo> <target-health%> <guild> <level> <achievement> <item>\n<pick:a|b|c>  |  <rng:1-100>")
+
+    frame:SetScript("OnShow", function()
+      BuildList()
+      RefreshDetails()
+    end)
+  end
+
+  frame:Show()
+  BuildList()
+  RefreshDetails()
+end

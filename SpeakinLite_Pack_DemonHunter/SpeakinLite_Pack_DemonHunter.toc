@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Demon Hunter Pack
+## Notes: Demon Hunter-specific triggers and phrases for SpeakinLite.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: SpeakinLite
+## LoadOnDemand: 1
+## X-SpeakinLite-Class: DEMONHUNTER
+
+Pack.lua

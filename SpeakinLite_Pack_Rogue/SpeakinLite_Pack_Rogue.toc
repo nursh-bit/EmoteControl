@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Rogue Pack
+## Notes: Rogue-specific triggers and phrases for SpeakinLite.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: SpeakinLite
+## LoadOnDemand: 1
+## X-SpeakinLite-Class: ROGUE
+
+Pack.lua
