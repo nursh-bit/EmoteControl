@@ -133,8 +133,9 @@ function addon:CreateSettingsPanel()
   -- Title
   CreateLabel(panel, "Emote Control", 16, -16, "large")
   CreateLabel(panel, "Lightweight spell + event announcer. Packs add triggers and phrases.", 16, -40)
+  CreateLabel(panel, "Quick access: Editor and Builder are the fastest way to customize triggers.", 16, -58)
 
-  local y = -72
+  local y = -86
 
   -- Master toggles
   local cbEnabled
@@ -286,6 +287,30 @@ function addon:CreateSettingsPanel()
   local testBtn = CreateButton(panel, "Test output", 300, y - 28, 180, function()
     if type(addon.Output) == "function" then
       addon:Output("Testing Emote Control output from settings panel.")
+    end
+  end)
+
+  local editorBtn = CreateButton(panel, "Open Trigger Editor", 16, y - 28, 180, function()
+    if type(addon.OpenEditor) == "function" then
+      addon:OpenEditor()
+    else
+      addon:Print("Editor UI not available.")
+    end
+  end)
+
+  local builderBtn = CreateButton(panel, "Open Trigger Builder", 16, y - 56, 180, function()
+    if type(addon.OpenTriggerBuilder) == "function" then
+      addon:OpenTriggerBuilder()
+    else
+      addon:Print("Trigger Builder UI not available.")
+    end
+  end)
+
+  local importExportBtn = CreateButton(panel, "Import / Export", 300, y - 56, 180, function()
+    if type(addon.OpenImportExportUI) == "function" then
+      addon:OpenImportExportUI()
+    else
+      addon:Print("Import/Export UI not available.")
     end
   end)
 
