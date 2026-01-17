@@ -19,6 +19,7 @@ addon.db = nil
 addon._sentTimes = addon._sentTimes or {}
 
 local SendChat = (C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" and C_ChatInfo.SendChatMessage) or SendChatMessage
+local CanChatSend = (C_ChatInfo and type(C_ChatInfo.CanChatMessageBeSent) == "function" and C_ChatInfo.CanChatMessageBeSent) or nil
 
 local function IsOutdoorRestrictedChat(chatType)
   -- EMOTE works everywhere, so only SAY/YELL/CHANNEL are restricted outdoors
@@ -155,6 +156,15 @@ function addon:Output(msg, channelOverride)
         NoteGlobalSend()
         return
       end
+    end
+  end
+
+  if CanChatSend then
+    local ok, canSend = pcall(CanChatSend, channel, msg)
+    if ok and canSend == false then
+      addon:Print(msg)
+      NoteGlobalSend()
+      return
     end
   end
 
@@ -370,6 +380,71 @@ function addon:ShowStats()
   
   for _, data in ipairs(catSorted) do
     addon:Print(string.format("  %s: %d", data.cat, data.count))
+  end
+end
+
+-- Loot processing (handles async item info in Retail)
+local function GetItemQuality(itemLink)
+  if C_Item and type(C_Item.GetItemInfo) == "function" then
+    local info = C_Item.GetItemInfo(itemLink)
+    if type(info) == "table" and type(info.quality) == "number" then
+      return info.quality
+    end
+  end
+  if type(GetItemInfo) == "function" then
+    local _, _, quality = GetItemInfo(itemLink)
+    if type(quality) == "number" then return quality end
+  end
+  return nil
+end
+
+local function QualityName(quality)
+  if quality == 5 then return "Legendary" end
+  if quality == 4 then return "Epic" end
+  if quality == 3 then return "Rare" end
+  if quality == 2 then return "Uncommon" end
+  return ""
+end
+
+function addon:ProcessLootMessage(message, eventName, attempts)
+  if type(message) ~= "string" then return end
+  local fullLink = message:match("|c.-|H.-|h.-|h|r")
+  if not fullLink then return end
+
+  local quality = GetItemQuality(fullLink)
+  if not quality then
+    local itemID = tonumber(fullLink:match("item:(%d+)"))
+    if itemID and (attempts or 0) < 2 then
+      addon._pendingLoot = addon._pendingLoot or {}
+      addon._pendingLoot[itemID] = addon._pendingLoot[itemID] or {}
+      table.insert(addon._pendingLoot[itemID], {
+        message = message,
+        eventName = eventName,
+        attempts = (attempts or 0) + 1
+      })
+      if C_Item and type(C_Item.RequestLoadItemData) == "function" then
+        pcall(C_Item.RequestLoadItemData, itemID)
+      end
+    end
+    return
+  end
+
+  local extraData = {
+    item = fullLink,
+    itemLink = fullLink,
+    quality = QualityName(quality),
+    qualityNum = tostring(quality or 0),
+  }
+
+  local args = { quality = quality }
+  local ctx = addon:MakeContext(nil, extraData)
+  local bucket = addon.TriggersByEvent and addon.TriggersByEvent[eventName]
+  if not bucket then return end
+
+  for _, trig in ipairs(bucket.list or {}) do
+    if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+      addon:FireTrigger(trig, ctx)
+    end
   end
 end
 
@@ -802,12 +877,29 @@ function addon:RebuildAndRegister()
     frame:RegisterEvent(eventName)
   end
 
+  frame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
+  frame:RegisterEvent("ITEM_DATA_LOAD_RESULT")
   frame:RegisterEvent("PLAYER_REGEN_DISABLED")
   frame:RegisterEvent("PLAYER_REGEN_ENABLED")
 end
 
 function addon:HandleEvent(eventName, ...)
   if not db or db.enabled == false then return end
+
+  -- Item info async load for loot parsing (Retail async cache)
+  if eventName == "GET_ITEM_INFO_RECEIVED" or eventName == "ITEM_DATA_LOAD_RESULT" then
+    local itemID, success = ...
+    if not success or not addon._pendingLoot or not itemID then
+      return
+    end
+    local pending = addon._pendingLoot[itemID]
+    if not pending then return end
+    addon._pendingLoot[itemID] = nil
+    for _, entry in ipairs(pending) do
+      addon:ProcessLootMessage(entry.message, entry.eventName, entry.attempts or 0)
+    end
+    return
+  end
 
   if eventName == "UNIT_SPELLCAST_SUCCEEDED" then
     if db.enableSpellTriggers == false then return end
@@ -894,37 +986,7 @@ function addon:HandleEvent(eventName, ...)
   if eventName == "CHAT_MSG_LOOT" or eventName == "LOOT_READY" then
     local message = ...
     if type(message) == "string" then
-      -- Parse item link from loot message
-      local itemLink = message:match("|c.-|H.-|h(.-)|h|r")
-      if itemLink then
-        local _, _, quality, _, _, _, _, _, _, _, _, _, _, _, _ = C_Item and C_Item.GetItemInfo and C_Item.GetItemInfo(itemLink) or GetItemInfo(itemLink)
-        local qualityName = ""
-        if quality == 4 then
-          qualityName = "Epic"
-        elseif quality == 5 then
-          qualityName = "Legendary"
-        elseif quality == 3 then
-          qualityName = "Rare"
-        elseif quality == 2 then
-          qualityName = "Uncommon"
-        end
-        
-        local extraData = {
-          item = itemLink or "an item",
-          itemLink = message:match("|c.-|H.-|h.-|h|r") or "",
-          quality = qualityName,
-          qualityNum = tostring(quality or 0),
-        }
-        
-        args.quality = quality
-        local ctx = addon:MakeContext(nil, extraData)
-        
-        for _, trig in ipairs(bucket.list or {}) do
-          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-            addon:FireTrigger(trig, ctx)
-          end
-        end
-      end
+      addon:ProcessLootMessage(message, eventName, 0)
     end
     return
   end
