@@ -73,56 +73,231 @@ local function Base64Decode(data)
   return table.concat(result)
 end
 
--- Serialize a table to a string
-local function SerializeTable(tbl, depth)
+-- Minimal JSON encoder/decoder (safe for WoW; no loadstring)
+local function JsonEscape(s)
+  return s:gsub("[\\\"\b\f\n\r\t]", function(c)
+    if c == "\\" then return "\\\\"
+    elseif c == "\"" then return "\\\""
+    elseif c == "\b" then return "\\b"
+    elseif c == "\f" then return "\\f"
+    elseif c == "\n" then return "\\n"
+    elseif c == "\r" then return "\\r"
+    elseif c == "\t" then return "\\t"
+    end
+  end)
+end
+
+local function IsArrayTable(t)
+  local max = 0
+  for k, _ in pairs(t) do
+    if type(k) ~= "number" or k <= 0 or k % 1 ~= 0 then
+      return false
+    end
+    if k > max then max = k end
+  end
+  for i = 1, max do
+    if t[i] == nil then return false end
+  end
+  return true, max
+end
+
+local function JsonEncodeValue(v, depth)
   depth = depth or 0
-  if depth > 10 then return "nil" end -- Prevent infinite recursion
-  
-  if type(tbl) ~= "table" then
-    if type(tbl) == "string" then
-      return string.format("%q", tbl)
-    else
-      return tostring(tbl)
+  if depth > 20 then return "null" end
+
+  local t = type(v)
+  if t == "nil" then return "null" end
+  if t == "boolean" then return v and "true" or "false" end
+  if t == "number" then return tostring(v) end
+  if t == "string" then return "\"" .. JsonEscape(v) .. "\"" end
+  if t ~= "table" then return "null" end
+
+  local isArray, max = IsArrayTable(v)
+  if isArray then
+    local parts = {"["}
+    for i = 1, max do
+      if i > 1 then table.insert(parts, ",") end
+      table.insert(parts, JsonEncodeValue(v[i], depth + 1))
+    end
+    table.insert(parts, "]")
+    return table.concat(parts)
+  end
+
+  local parts = {"{"}
+  local keys = {}
+  for k, _ in pairs(v) do
+    if type(k) == "string" then
+      table.insert(keys, k)
     end
   end
-  
-  local parts = {"{"}
-  for k, v in pairs(tbl) do
-    local key
-    if type(k) == "string" and k:match("^[a-zA-Z_][a-zA-Z0-9_]*$") then
-      key = k
-    else
-      key = "[" .. SerializeTable(k, depth + 1) .. "]"
-    end
-    table.insert(parts, key .. "=" .. SerializeTable(v, depth + 1) .. ",")
+  table.sort(keys)
+  for idx, k in ipairs(keys) do
+    if idx > 1 then table.insert(parts, ",") end
+    table.insert(parts, "\"" .. JsonEscape(k) .. "\":" .. JsonEncodeValue(v[k], depth + 1))
   end
   table.insert(parts, "}")
   return table.concat(parts)
 end
 
--- Deserialize a string to a table (safe load)
-local function DeserializeTable(str)
-  if type(str) ~= "string" or str == "" then return nil end
-  
-  -- Create a safe environment
-  local env = {
-    math = math,
-    string = string,
-    table = table,
-  }
-  
-  local func, err = loadstring("return " .. str)
-  if not func then
-    return nil, "Parse error: " .. tostring(err)
+local function JsonDecode(str)
+  if type(str) ~= "string" or str == "" then return nil, "Empty input" end
+
+  local i = 1
+  local len = #str
+
+  local function skip()
+    while i <= len do
+      local c = str:sub(i, i)
+      if c == " " or c == "\n" or c == "\r" or c == "\t" then
+        i = i + 1
+      else
+        break
+      end
+    end
   end
-  
-  setfenv(func, env)
-  local ok, result = pcall(func)
-  if not ok then
-    return nil, "Execution error: " .. tostring(result)
+
+  local function parseString()
+    i = i + 1 -- skip opening quote
+    local out = {}
+    while i <= len do
+      local c = str:sub(i, i)
+      if c == "\"" then
+        i = i + 1
+        return table.concat(out)
+      elseif c == "\\" then
+        local n = str:sub(i + 1, i + 1)
+        if n == "\"" or n == "\\" or n == "/" then
+          table.insert(out, n)
+          i = i + 2
+        elseif n == "b" then table.insert(out, "\b"); i = i + 2
+        elseif n == "f" then table.insert(out, "\f"); i = i + 2
+        elseif n == "n" then table.insert(out, "\n"); i = i + 2
+        elseif n == "r" then table.insert(out, "\r"); i = i + 2
+        elseif n == "t" then table.insert(out, "\t"); i = i + 2
+        elseif n == "u" then
+          local hex = str:sub(i + 2, i + 5)
+          if not hex:match("^[0-9a-fA-F]+$") then
+            return nil, "Invalid unicode escape"
+          end
+          local code = tonumber(hex, 16) or 0
+          if code <= 255 then
+            table.insert(out, string.char(code))
+          else
+            return nil, "Unicode escape out of range"
+          end
+          i = i + 6
+        else
+          return nil, "Invalid escape"
+        end
+      else
+        table.insert(out, c)
+        i = i + 1
+      end
+    end
+    return nil, "Unterminated string"
   end
-  
+
+  local function parseNumber()
+    local s, e = str:find("^%-?%d+%.?%d*[eE]?[%+%-]?%d*", i)
+    if not s then return nil, "Invalid number" end
+    local num = tonumber(str:sub(s, e))
+    i = e + 1
+    return num
+  end
+
+  local parseValue
+
+  local function parseArray()
+    i = i + 1 -- skip [
+    local arr = {}
+    skip()
+    if str:sub(i, i) == "]" then
+      i = i + 1
+      return arr
+    end
+    while i <= len do
+      local v, err = parseValue()
+      if err then return nil, err end
+      table.insert(arr, v)
+      skip()
+      local c = str:sub(i, i)
+      if c == "," then
+        i = i + 1
+        skip()
+      elseif c == "]" then
+        i = i + 1
+        return arr
+      else
+        return nil, "Expected , or ]"
+      end
+    end
+    return nil, "Unterminated array"
+  end
+
+  local function parseObject()
+    i = i + 1 -- skip {
+    local obj = {}
+    skip()
+    if str:sub(i, i) == "}" then
+      i = i + 1
+      return obj
+    end
+    while i <= len do
+      if str:sub(i, i) ~= "\"" then
+        return nil, "Expected string key"
+      end
+      local key, err = parseString()
+      if err then return nil, err end
+      skip()
+      if str:sub(i, i) ~= ":" then return nil, "Expected :" end
+      i = i + 1
+      skip()
+      local val, err2 = parseValue()
+      if err2 then return nil, err2 end
+      obj[key] = val
+      skip()
+      local c = str:sub(i, i)
+      if c == "," then
+        i = i + 1
+        skip()
+      elseif c == "}" then
+        i = i + 1
+        return obj
+      else
+        return nil, "Expected , or }"
+      end
+    end
+    return nil, "Unterminated object"
+  end
+
+  parseValue = function()
+    skip()
+    local c = str:sub(i, i)
+    if c == "\"" then return parseString() end
+    if c == "{" then return parseObject() end
+    if c == "[" then return parseArray() end
+    if c == "t" and str:sub(i, i + 3) == "true" then i = i + 4; return true end
+    if c == "f" and str:sub(i, i + 4) == "false" then i = i + 5; return false end
+    if c == "n" and str:sub(i, i + 3) == "null" then i = i + 4; return nil end
+    if c:match("[%-%d]") then return parseNumber() end
+    return nil, "Unexpected character"
+  end
+
+  local result, err = parseValue()
+  if err then return nil, err end
+  skip()
+  if i <= len then return nil, "Trailing data" end
   return result
+end
+
+-- Serialize a table to a string (JSON)
+local function SerializeTable(tbl)
+  return JsonEncodeValue(tbl, 0)
+end
+
+-- Deserialize a string to a table (JSON)
+local function DeserializeTable(str)
+  return JsonDecode(str)
 end
 
 -- Export trigger override
