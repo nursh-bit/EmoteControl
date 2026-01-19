@@ -1,8 +1,9 @@
 -- EmoteControl - Settings Panel (Retail 10.0+ Settings UI)
--- Uses Settings.RegisterCanvasLayoutCategory so we can place our own widgets.
+-- Provides advanced configuration options via the settings interface
+-- Uses Settings.RegisterCanvasLayoutCategory for custom widget placement
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 local panel
