@@ -1,8 +1,9 @@
 -- EmoteControl - Import/Export System
--- Allows users to share trigger configurations
+-- Enables sharing and importing trigger configurations between players
+-- Uses Base64 encoding for compact configuration strings
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 -- Base64 encoding/decoding (simple implementation)
