@@ -1,31 +1,33 @@
--- EmoteControl - Options UI
--- Works with Interface Options (still supported) and provides shortcuts via /sl options, /sl packs, /sl editor.
+-- EmoteControl - Options Interface
+-- Provides both legacy Interface Options and modern settings UI
+-- Shortcuts available via /sl options, /sl packs, /sl editor
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
+-- Helper function to create and configure font strings with common patterns
+local function MakeFontString(parent, anchor, fontSize, spacing, width, justifyH, text)
+  local fs = parent:CreateFontString(nil, "ARTWORK", fontSize or "GameFontHighlight")
+  fs:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -(spacing or 6))
+  if width then fs:SetWidth(width) end
+  if justifyH then fs:SetJustifyH(justifyH) end
+  if text then fs:SetText(text) end
+  return fs
+end
+
 local function MakeTitle(parent, text)
-  local title = parent:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
+  local title = MakeFontString(parent, parent, "GameFontNormalLarge", 16, nil, nil, text)
   title:SetPoint("TOPLEFT", 16, -16)
-  title:SetText(text)
   return title
 end
 
 local function MakePara(parent, anchor, text)
-  local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-  fs:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -6)
-  fs:SetWidth(560)
-  fs:SetJustifyH("LEFT")
-  fs:SetText(text)
-  return fs
+  return MakeFontString(parent, anchor, "GameFontHighlight", 6, 560, "LEFT", text)
 end
 
 local function MakeSubTitle(parent, anchor, text)
-  local fs = parent:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-  fs:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -14)
-  fs:SetText(text)
-  return fs
+  return MakeFontString(parent, anchor, "GameFontNormal", 14, nil, nil, text)
 end
 
 local function MakeCheckbox(parent, name, anchor, label, tooltip)

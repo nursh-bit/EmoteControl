@@ -1,22 +1,26 @@
--- EmoteControl - Core
--- Lightweight, modular announcer addon. Packs provide triggers and phrases.
+-- EmoteControl - Core Engine
+-- Lightweight, modular announcer addon with phrase packs
 
 local ADDON_NAME = ...
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+-- Initialize the EmoteControl namespace with backward compatibility
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
+-- Metadata
+addon.ADDON_NAME = ADDON_NAME
 addon.VERSION = "0.9.5"
 addon.DB_VERSION = 2
 
+-- Create event frame for listener registration
 local frame = CreateFrame("Frame")
 
 -- SavedVariables (initialized on PLAYER_LOGIN)
 local db
 addon.db = nil
 
--- Runtime rate limiting
+-- Runtime rate limiting cache
 addon._sentTimes = addon._sentTimes or {}
 
 local function SetDefault(tbl, key, value)
@@ -26,22 +30,31 @@ local function SetDefault(tbl, key, value)
   end
 end
 
+-- Apply recommended default settings for a fresh database
 function addon:ApplyRecommendedDefaults(db)
   if type(db) ~= "table" then return end
-  db.enabled = true
-  db.channel = "EMOTE"
-  db.fallbackToSelf = true
-  db.globalCooldown = 6
-  db.rotationProtection = "MEDIUM"
-  db.maxPerMinute = 8
-  db.repairThreshold = 0.2
-  db.enableSpellTriggers = true
-  db.enableNonSpellTriggers = true
-  db.onlyLearnedSpells = true
-  db.enableCombatLogTriggers = false
-  db.enableLootTriggers = true
-  db.enableAchievementTriggers = true
-  db.enableLevelUpTriggers = true
+  
+  -- Use a defaults table for maintainability
+  local defaults = {
+    enabled = true,
+    channel = "EMOTE",
+    fallbackToSelf = true,
+    globalCooldown = 6,
+    rotationProtection = "MEDIUM",
+    maxPerMinute = 8,
+    repairThreshold = 0.2,
+    enableSpellTriggers = true,
+    enableNonSpellTriggers = true,
+    onlyLearnedSpells = true,
+    enableCombatLogTriggers = false,
+    enableLootTriggers = true,
+    enableAchievementTriggers = true,
+    enableLevelUpTriggers = true,
+  }
+  
+  for key, value in pairs(defaults) do
+    db[key] = value
+  end
 end
 
 function addon:ApplyMigrations(db)
@@ -92,13 +105,25 @@ local function GetRotationFloorSeconds()
   return addon.ROTATION_PROTECTION[mode] or 0
 end
 
+-- Remove sent times older than 60 seconds using more efficient shifting
 local function PruneSentTimes(now)
   local t = addon._sentTimes
   if type(t) ~= "table" then return end
   
-  -- Optimized: since times are chronological, remove old entries from the front only
-  while #t > 0 and (now - t[1]) > 60 do
-    table.remove(t, 1)
+  -- Find the first non-expired entry index
+  local writeIdx = 1
+  for readIdx = 1, #t do
+    if (now - t[readIdx]) <= 60 then
+      if writeIdx ~= readIdx then
+        t[writeIdx] = t[readIdx]
+      end
+      writeIdx = writeIdx + 1
+    end
+  end
+  
+  -- Clear remaining entries
+  for i = writeIdx, #t do
+    t[i] = nil
   end
 end
 
@@ -118,13 +143,14 @@ local function NoteGlobalSend()
   table.insert(addon._sentTimes, now)
 end
 
+-- Apply template substitutions (tokens and random selection) to a message
 function addon:ApplySubs(template, ctx)
   if type(template) ~= "string" then return "" end
   ctx = ctx or {}
 
   local out = template
 
-  -- <pick:a|b|c>
+  -- <pick:a|b|c> - random selection from pipe-separated options
   out = out:gsub("<pick:([^>]+)>", function(body)
     local opts = {}
     for part in string.gmatch(body, "[^|]+") do
@@ -134,7 +160,7 @@ function addon:ApplySubs(template, ctx)
     return addon:RandomFrom(opts) or ""
   end)
 
-  -- <rng:1-100>
+  -- <rng:1-100> - random number in range
   out = out:gsub("<rng:(%d+)%-(%d+)>", function(a, b)
     local lo = tonumber(a) or 0
     local hi = tonumber(b) or lo
@@ -142,57 +168,65 @@ function addon:ApplySubs(template, ctx)
     return tostring(math.random(lo, hi))
   end)
 
-  -- Simple tokens
-  out = out:gsub("<player>", ctx.player or "")
-  out = out:gsub("<spell>", ctx.spell or "")
-  out = out:gsub("<target>", ctx.target or "")
-  out = out:gsub("<zone>", ctx.zone or "")
-  out = out:gsub("<spec>", ctx.spec or "")
-  out = out:gsub("<class>", ctx.class or "")
-  out = out:gsub("<instance>", ctx.instanceType or "")
-  out = out:gsub("<race>", ctx.race or "")
+  -- Token substitution map for efficient and maintainable replacement
+  local tokens = {
+    -- Player info tokens
+    player = ctx.player or "",
+    spell = ctx.spell or "",
+    target = ctx.target or "",
+    zone = ctx.zone or "",
+    spec = ctx.spec or "",
+    class = ctx.class or "",
+    instance = ctx.instanceType or "",
+    race = ctx.race or "",
+    guild = ctx.guild or "",
+    level = ctx.level or "1",
+    -- Health and power tokens
+    ["health%%"] = ctx.healthPct or "0",
+    health = ctx.health or "0",
+    healthmax = ctx.healthMax or "0",
+    ["power%%"] = ctx.powerPct or "0",
+    power = ctx.power or "0",
+    powermax = ctx.powerMax or "0",
+    powername = ctx.powerName or "Power",
+    combo = ctx.combo or "0",
+    ["target-health%%"] = ctx.targetHealthPct or "0",
+    -- Loot and achievement tokens
+    achievement = ctx.achievement or "",
+    item = ctx.item or "",
+    itemlink = ctx.itemLink or "",
+    quality = ctx.quality or "",
+  }
   
-  -- Health and Power tokens
-  out = out:gsub("<health%%>", ctx.healthPct or "0")
-  out = out:gsub("<health>", ctx.health or "0")
-  out = out:gsub("<healthmax>", ctx.healthMax or "0")
-  out = out:gsub("<power%%>", ctx.powerPct or "0")
-  out = out:gsub("<power>", ctx.power or "0")
-  out = out:gsub("<powermax>", ctx.powerMax or "0")
-  out = out:gsub("<powername>", ctx.powerName or "Power")
-  out = out:gsub("<combo>", ctx.combo or "0")
-  out = out:gsub("<target%-health%%>", ctx.targetHealthPct or "0")
-  
-  -- Misc tokens
-  out = out:gsub("<guild>", ctx.guild or "")
-  out = out:gsub("<level>", ctx.level or "1")
-  out = out:gsub("<achievement>", ctx.achievement or "")
-  out = out:gsub("<item>", ctx.item or "")
-  out = out:gsub("<itemlink>", ctx.itemLink or "")
-  out = out:gsub("<quality>", ctx.quality or "")
+  -- Apply all token substitutions at once
+  for token, value in pairs(tokens) do
+    out = out:gsub("<" .. token .. ">", value)
+  end
 
   return out
 end
 
+-- Output a message to the specified or default channel with fallback handling
 function addon:Output(msg, channelOverride)
   if not msg or msg == "" then return end
 
   local channel = channelOverride or (db and db.channel) or "SELF"
   channel = string.upper(channel)
 
+  -- Self output is always safe and doesn't require group checks
   if channel == "SELF" then
     addon:Print(msg)
     NoteGlobalSend()
     return
   end
 
+  -- Validate and handle group channels with intelligent fallback
   local inInstance = IsInInstance()
+  
+  -- Fallback from restricted channels
   if not inInstance and IsOutdoorRestrictedChat(channel) and (not db or db.fallbackToSelf ~= false) then
-    -- Fallback to EMOTE instead of SELF when SAY/YELL is blocked outdoors
     channel = "EMOTE"
-  end
-
-  if channel == "PARTY" then
+  elseif channel == "PARTY" then
     if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
       addon:Print(msg)
       NoteGlobalSend()
@@ -205,7 +239,6 @@ function addon:Output(msg, channelOverride)
       return
     end
   elseif channel == "INSTANCE" then
-    channel = "INSTANCE_CHAT"
     if not IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
       if IsInGroup(LE_PARTY_CATEGORY_HOME) then
         channel = "PARTY"
@@ -214,9 +247,12 @@ function addon:Output(msg, channelOverride)
         NoteGlobalSend()
         return
       end
+    else
+      channel = "INSTANCE_CHAT"
     end
   end
 
+  -- Final safety check before sending
   if CanChatSend then
     local ok, canSend = pcall(CanChatSend, channel, msg)
     if ok and canSend == false then
@@ -226,6 +262,7 @@ function addon:Output(msg, channelOverride)
     end
   end
 
+  -- Attempt to send the message with fallback
   local ok = pcall(SendChat, msg, channel)
   if not ok then
     addon:Print(msg)
