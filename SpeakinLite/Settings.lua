@@ -1,8 +1,9 @@
 -- EmoteControl - Settings Panel (Retail 10.0+ Settings UI)
--- Uses Settings.RegisterCanvasLayoutCategory so we can place our own widgets.
+-- Provides advanced configuration options via the settings interface
+-- Uses Settings.RegisterCanvasLayoutCategory for custom widget placement
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 local panel
@@ -462,25 +463,27 @@ function addon:CreatePacksSettingsPanel()
         label = label .. " (not loadable" .. reason .. ")"
       end
 
+      local show = true
       if filter ~= "" and not addon:SafeLower(label):find(filter, 1, true) then
-        goto continue
+        show = false
       end
 
-      local cb = CreateCheckbox(content, label, 0, y, function(v)
-        if type(addon.SetPackEnabled) == "function" then
-          addon:SetPackEnabled(entry.id, v, entry.addonName)
-        else
-          local db2 = addon:GetDB() or {}
-          db2.packEnabled = db2.packEnabled or {}
-          db2.packEnabled[entry.id] = v
-          EmoteControlDB = db2
-          SpeakinLiteDB = EmoteControlDB
-        end
-      end)
-      cb:SetChecked(db.packEnabled[entry.id] ~= false)
-      table.insert(checkboxes, cb)
-      y = y - 24
-      ::continue::
+      if show then
+        local cb = CreateCheckbox(content, label, 0, y, function(v)
+          if type(addon.SetPackEnabled) == "function" then
+            addon:SetPackEnabled(entry.id, v, entry.addonName)
+          else
+            local db2 = addon:GetDB() or {}
+            db2.packEnabled = db2.packEnabled or {}
+            db2.packEnabled[entry.id] = v
+            EmoteControlDB = db2
+            SpeakinLiteDB = EmoteControlDB
+          end
+        end)
+        cb:SetChecked(db.packEnabled[entry.id] ~= false)
+        table.insert(checkboxes, cb)
+        y = y - 24
+      end
     end
 
     content:SetHeight(math.max(1, (-y) + 24))

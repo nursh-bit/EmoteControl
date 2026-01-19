@@ -1,14 +1,18 @@
 -- EmoteControl - Pack Registry and Trigger Index
+-- Manages pack registration, trigger indexing, and spell resolution.
 -- Packs are separate LoadOnDemand addons that call EmoteControl:RegisterPack({...}).
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
-addon.Packs = addon.Packs or {}
-addon.TriggersByEvent = addon.TriggersByEvent or {}
-addon.EventsToRegister = addon.EventsToRegister or {}
-addon.TriggerById = addon.TriggerById or {}
+-- Pack and trigger data structures
+addon.Packs = addon.Packs or {}           -- Registered packs by ID
+addon.TriggersByEvent = addon.TriggersByEvent or {}  -- Triggers indexed by event
+addon.EventsToRegister = addon.EventsToRegister or {}  -- Events that need registration
+addon.TriggerById = addon.TriggerById or {}  -- Triggers indexed by ID
+
+-- Caches for spell resolution (improves performance on repeated lookups)
 addon._spellIdCache = addon._spellIdCache or {}
 addon._spellNameCache = addon._spellNameCache or {}
 
@@ -56,49 +60,34 @@ function addon:RegisterPack(pack)
   addon.Packs[pack.id] = pack
 end
 
-local function ResolveSpellIDFromCSpell(spellIdentifier)
-  if not (C_Spell and type(C_Spell.GetSpellIDForSpellIdentifier) == "function") then return nil end
-  local ok, id = pcall(C_Spell.GetSpellIDForSpellIdentifier, spellIdentifier)
-  if ok and type(id) == "number" then return id end
-  return nil
-end
-
-local function ResolveSpellIDFromGetSpellInfo(spellIdentifier)
-  if type(GetSpellInfo) ~= "function" then return nil end
-  local ok, a, b, c, d, e, f, spellID = pcall(GetSpellInfo, spellIdentifier)
-  if ok and type(spellID) == "number" then return spellID end
-  if ok and type(f) == "number" then return f end
-  return nil
-end
-
-local function ResolveSpellNameFromID(spellID)
-  if C_Spell and type(C_Spell.GetSpellInfo) == "function" then
-    local ok, info = pcall(C_Spell.GetSpellInfo, spellID)
-    if ok and type(info) == "table" and type(info.name) == "string" then
-      return info.name
-    end
-  end
-  if type(GetSpellInfo) == "function" then
-    local ok, name = pcall(GetSpellInfo, spellID)
-    if ok and type(name) == "string" then return name end
-  end
-  return nil
-end
-
+-- Resolve spell ID from identifier with multi-method fallback and caching
 function addon:ResolveSpellID(spellIdentifier)
   if type(spellIdentifier) == "number" then return spellIdentifier end
   if type(spellIdentifier) ~= "string" then return nil end
 
+  -- Check cache first for fast lookup
   local key = addon:SafeLower(spellIdentifier)
   if key and addon._spellIdCache[key] then
     return addon._spellIdCache[key]
   end
 
-  local id = ResolveSpellIDFromCSpell(spellIdentifier)
-  if not id then
-    id = ResolveSpellIDFromGetSpellInfo(spellIdentifier)
+  -- Try newer C_Spell API first, then fall back to legacy API
+  local id
+  if C_Spell and type(C_Spell.GetSpellIDForSpellIdentifier) == "function" then
+    local ok, resolvedId = pcall(C_Spell.GetSpellIDForSpellIdentifier, spellIdentifier)
+    if ok and type(resolvedId) == "number" then id = resolvedId end
+  end
+  
+  if not id and type(GetSpellInfo) == "function" then
+    local ok, a, b, c, d, e, f, spellID = pcall(GetSpellInfo, spellIdentifier)
+    if ok and type(spellID) == "number" then 
+      id = spellID
+    elseif ok and type(f) == "number" then 
+      id = f
+    end
   end
 
+  -- Cache valid IDs for future lookups
   if type(id) == "number" and id > 0 and key then
     addon._spellIdCache[key] = id
   end
@@ -106,16 +95,32 @@ function addon:ResolveSpellID(spellIdentifier)
   return id
 end
 
+-- Get spell name by ID with caching for repeated lookups
 function addon:GetSpellName(spellID)
   if type(spellID) ~= "number" then return nil end
   
-  -- Check cache first
+  -- Check cache first for instant return
   if addon._spellNameCache[spellID] then
     return addon._spellNameCache[spellID]
   end
   
-  -- Resolve and cache
-  local name = ResolveSpellNameFromID(spellID)
+  -- Try newer C_Spell API first, then fall back
+  local name
+  if C_Spell and type(C_Spell.GetSpellInfo) == "function" then
+    local ok, info = pcall(C_Spell.GetSpellInfo, spellID)
+    if ok and type(info) == "table" and type(info.name) == "string" then
+      name = info.name
+    end
+  end
+  
+  if not name and type(GetSpellInfo) == "function" then
+    local ok, resolvedName = pcall(GetSpellInfo, spellID)
+    if ok and type(resolvedName) == "string" then
+      name = resolvedName
+    end
+  end
+  
+  -- Cache the result
   if type(name) == "string" then
     addon._spellNameCache[spellID] = name
   end

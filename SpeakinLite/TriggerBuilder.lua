@@ -1,8 +1,9 @@
--- EmoteControl - Trigger Builder
--- Visual interface for creating custom triggers without editing Lua
+-- EmoteControl - Trigger Builder Interface
+-- Visual UI for creating and editing custom triggers without Lua code
+-- Simplifies trigger creation with form-based configuration
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 local builderFrame = nil

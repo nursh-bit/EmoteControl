@@ -1,8 +1,9 @@
--- EmoteControl - Trigger Editor UI
--- Simple in-game editor for per-trigger overrides (enabled/cooldown/channel/messages)
+-- EmoteControl - Trigger Editor Interface
+-- In-game UI for customizing trigger behavior on a per-trigger basis
+-- Allows editing: enabled state, cooldown, channel, and message overrides
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 local frame

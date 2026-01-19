@@ -1,14 +1,21 @@
 -- EmoteControl - Shared Utility Functions
--- This file must be loaded first (see .toc file)
+-- Core utilities for string, number, table, and player info handling.
+-- This file is loaded first according to the .toc file
 
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or {}
+SpeakinLite = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 -- String utilities
 function addon:SafeLower(s)
   if type(s) ~= "string" then return nil end
   return string.lower(s)
+end
+
+-- Safe string trimming utility
+function addon:TrimString(s)
+  if type(s) ~= "string" then return "" end
+  return s:gsub("^%s+", ""):gsub("%s+$", "")
 end
 
 -- Number utilities
@@ -19,21 +26,27 @@ function addon:ClampNumber(n, lo, hi)
   return n
 end
 
--- Channel utilities
+-- Channel utilities - normalize user input to standard channel names
 function addon:NormalizeChannel(s)
   if type(s) ~= "string" then return nil end
   s = self:SafeLower(s)
   if not s then return nil end
   
-  if s == "self" or s == "local" or s == "me" then return "SELF" end
-  if s == "say" then return "SAY" end
-  if s == "yell" then return "YELL" end
-  if s == "emote" or s == "e" then return "EMOTE" end
-  if s == "party" or s == "p" then return "PARTY" end
-  if s == "raid" or s == "r" then return "RAID" end
-  if s == "instance" or s == "i" then return "INSTANCE" end
+  -- Create a map for channel aliases
+  local channels = {
+    self = "SELF", local_ = "SELF", me = "SELF", 
+    say = "SAY", 
+    yell = "YELL", 
+    emote = "EMOTE", e = "EMOTE", 
+    party = "PARTY", p = "PARTY", 
+    raid = "RAID", r = "RAID", 
+    instance = "INSTANCE", i = "INSTANCE",
+  }
   
-  return nil
+  -- Handle local as a reserved word
+  if s == "local" then s = "local_" end
+  
+  return channels[s]
 end
 
 -- Chat output utility
@@ -59,7 +72,7 @@ function addon:RandomFrom(list)
   return list[math.random(n)]
 end
 
--- Player info utilities
+-- Player info utilities with fallback and safety checks
 function addon:GetPlayerClass()
   local _, classFile = UnitClass("player")
   return classFile or ""
@@ -70,6 +83,7 @@ function addon:GetPlayerRaceFile()
   return raceFile or ""
 end
 
+-- Get current specialization info with multiple fallback paths
 function addon:GetSpecInfo()
   if type(GetSpecialization) ~= "function" or type(GetSpecializationInfo) ~= "function" then
     return nil, ""
@@ -84,6 +98,7 @@ function addon:GetZone()
   return GetZoneText() or ""
 end
 
+-- Determine instance type with clear return values
 function addon:GetInstanceType()
   local inInst, instType = IsInInstance()
   return inInst, (instType or "")
