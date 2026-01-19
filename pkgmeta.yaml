@@ -1,0 +1,54 @@
+package-as: SpeakinLite
+enable-nolib-creation: no
+
+ignore:
+  - .git
+  - .github
+  - README.md
+
+move-folders:
+  # MAIN ADDON
+  Addons/SpeakinLite: SpeakinLite
+
+  # PACKS
+  Addons/SpeakinLite_Pack_BloodElf: SpeakinLite_Pack_BloodElf
+  Addons/SpeakinLite_Pack_Common: SpeakinLite_Pack_Common
+  Addons/SpeakinLite_Pack_DailyActivities: SpeakinLite_Pack_DailyActivities
+  Addons/SpeakinLite_Pack_DarkIronDwarf: SpeakinLite_Pack_DarkIronDwarf
+  Addons/SpeakinLite_Pack_DeathKnight: SpeakinLite_Pack_DeathKnight
+  Addons/SpeakinLite_Pack_DemonHunter: SpeakinLite_Pack_DemonHunter
+  Addons/SpeakinLite_Pack_Drachtyr: SpeakinLite_Pack_Drachtyr
+  Addons/SpeakinLite_Pack_Draenei: SpeakinLite_Pack_Draenei
+  Addons/SpeakinLite_Pack_Druid: SpeakinLite_Pack_Druid
+  Addons/SpeakinLite_Pack_Dwarf: SpeakinLite_Pack_Dwarf
+  Addons/SpeakinLite_Pack_Earthen: SpeakinLite_Pack_Earthen
+  Addons/SpeakinLite_Pack_Evoker: SpeakinLite_Pack_Evoker
+  Addons/SpeakinLite_Pack_Gnome: SpeakinLite_Pack_Gnome
+  Addons/SpeakinLite_Pack_Goblin: SpeakinLite_Pack_Goblin
+  Addons/SpeakinLite_Pack_HighmountainTauren: SpeakinLite_Pack_HighmountainTauren
+  Addons/SpeakinLite_Pack_Human: SpeakinLite_Pack_Human
+  Addons/SpeakinLite_Pack_Hunter: SpeakinLite_Pack_Hunter
+  Addons/SpeakinLite_Pack_KulTiran: SpeakinLite_Pack_KulTiran
+  Addons/SpeakinLite_Pack_LightforgedDraenei: SpeakinLite_Pack_LightforgedDraenei
+  Addons/SpeakinLite_Pack_Mage: SpeakinLite_Pack_Mage
+  Addons/SpeakinLite_Pack_MagharOrc: SpeakinLite_Pack_MagharOrc
+  Addons/SpeakinLite_Pack_Mechagnome: SpeakinLite_Pack_Mechagnome
+  Addons/SpeakinLite_Pack_Monk: SpeakinLite_Pack_Monk
+  Addons/SpeakinLite_Pack_Nightborne: SpeakinLite_Pack_Nightborne
+  Addons/SpeakinLite_Pack_NightElf: SpeakinLite_Pack_NightElf
+  Addons/SpeakinLite_Pack_Orc: SpeakinLite_Pack_Orc
+  Addons/SpeakinLite_Pack_Paladin: SpeakinLite_Pack_Paladin
+  Addons/SpeakinLite_Pack_Pandaren: SpeakinLite_Pack_Pandaren
+  Addons/SpeakinLite_Pack_Priest: SpeakinLite_Pack_Priest
+  Addons/SpeakinLite_Pack_Professions: SpeakinLite_Pack_Professions
+  Addons/SpeakinLite_Pack_Rogue: SpeakinLite_Pack_Rogue
+  Addons/SpeakinLite_Pack_Shaman: SpeakinLite_Pack_Shaman
+  Addons/SpeakinLite_Pack_Tauren: SpeakinLite_Pack_Tauren
+  Addons/SpeakinLite_Pack_Troll: SpeakinLite_Pack_Troll
+  Addons/SpeakinLite_Pack_Undead: SpeakinLite_Pack_Undead
+  Addons/SpeakinLite_Pack_VoidElf: SpeakinLite_Pack_VoidElf
+  Addons/SpeakinLite_Pack_Vulpera: SpeakinLite_Pack_Vulpera
+  Addons/SpeakinLite_Pack_Warlock: SpeakinLite_Pack_Warlock
+  Addons/SpeakinLite_Pack_Warrior: SpeakinLite_Pack_Warrior
+  Addons/SpeakinLite_Pack_Worgen: SpeakinLite_Pack_Worgen
+  Addons/SpeakinLite_Pack_ZandalariTroll: SpeakinLite_Pack_ZandalariTroll
