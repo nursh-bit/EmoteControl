@@ -153,12 +153,34 @@ local function BuildList()
       row.text:SetText(item.id)
       row.sub:SetText(PrettyLabel(item.trig))
       if selectedId == item.id then
-        row.bg:Show()
+        row.highlight:Show()
+        row.bg:SetColorTexture(0.15, 0.2, 0.3, 0.8)
       else
-        row.bg:Hide()
+        row.highlight:Hide()
+        row.bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
       end
     else
       row:Hide()
+    end
+  end
+
+  -- Auto-select the first visible row if the current selection is not visible
+  local selectedVisible = false
+  if selectedId then
+    for i = 1, 14 do
+      local item = items[offset + i]
+      if item and item.id == selectedId then
+        selectedVisible = true
+        break
+      end
+    end
+  end
+
+  if not selectedVisible then
+    local first = items[offset + 1]
+    if first then
+      selectedId = first.id
+      RefreshDetails()
     end
   end
 end
@@ -206,6 +228,43 @@ function addon:OpenEditor()
     leftPane:SetSize(380, 420)
     MakeBackdrop(leftPane)
 
+    -- Draggable divider between panes
+    local divider = CreateFrame("Frame", nil, frame)
+    divider:SetSize(8, 420)
+    divider:SetPoint("TOPLEFT", leftPane, "TOPRIGHT", -4, 0)
+    divider:SetCursor("SIZEWE")
+    divider:EnableMouse(true)
+
+    local dividerTex = divider:CreateTexture(nil, "ARTWORK")
+    dividerTex:SetAllPoints()
+    dividerTex:SetColorTexture(0.3, 0.3, 0.3, 0.6)
+
+    local dividerLine = divider:CreateTexture(nil, "ARTWORK")
+    dividerLine:SetSize(1, 420)
+    dividerLine:SetPoint("CENTER", divider, "CENTER", 0, 0)
+    dividerLine:SetColorTexture(0.6, 0.6, 0.6, 1)
+
+    divider:SetScript("OnMouseDown", function(self, button)
+      if button == "LeftButton" then
+        self._dragging = true
+        self._startX = GetCursorPosition()
+        self._startLeftWidth = leftPane:GetWidth()
+      end
+    end)
+
+    divider:SetScript("OnMouseUp", function(self, button)
+      self._dragging = false
+    end)
+
+    divider:SetScript("OnUpdate", function(self)
+      if self._dragging then
+        local currentX = GetCursorPosition()
+        local delta = currentX - self._startX
+        local newWidth = math.max(280, math.min(480, self._startLeftWidth + delta))
+        leftPane:SetSize(newWidth, 420)
+      end
+    end)
+
     local scroll = CreateFrame("ScrollFrame", "EmoteControlEditorScroll", leftPane, "FauxScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 0, -6)
     scroll:SetPoint("BOTTOMRIGHT", -28, 6)
@@ -217,23 +276,33 @@ function addon:OpenEditor()
     frame.rows = {}
     for i = 1, 14 do
       local row = CreateFrame("Button", nil, leftPane)
-      row:SetSize(350, 16)
-      row:SetPoint("TOPLEFT", 8, -8 - (i - 1) * 28)
+      row:SetSize(350, 24)
+      row:SetPoint("TOPLEFT", 4, -6 - (i - 1) * 28)
 
+      -- Background: darker when not selected, lighter on hover
       local bg = row:CreateTexture(nil, "BACKGROUND")
       bg:SetAllPoints()
-      bg:SetColorTexture(0.2, 0.4, 0.8, 0.25)
-      bg:Hide()
+      bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
       row.bg = bg
 
-      local text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-      text:SetPoint("TOPLEFT", 0, 0)
+      -- Highlight bar on left edge for selected state
+      local highlight = row:CreateTexture(nil, "ARTWORK")
+      highlight:SetSize(3, 24)
+      highlight:SetPoint("LEFT", row, "LEFT", 0, 0)
+      highlight:SetColorTexture(0.2, 0.6, 1.0, 0.8)
+      highlight:Hide()
+      row.highlight = highlight
+
+      local text = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+      text:SetPoint("TOPLEFT", 10, -2)
       text:SetText("")
+      text:SetTextColor(1, 1, 1, 1)
       row.text = text
 
       local sub = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-      sub:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -2)
+      sub:SetPoint("TOPLEFT", text, "BOTTOMLEFT", 0, -1)
       sub:SetText("")
+      sub:SetTextColor(0.8, 0.8, 0.8, 0.7)
       row.sub = sub
 
       row:SetScript("OnClick", function(self)
@@ -242,11 +311,23 @@ function addon:OpenEditor()
         BuildList()
       end)
 
+      row:SetScript("OnEnter", function(self)
+        if selectedId ~= self.id then
+          bg:SetColorTexture(0.15, 0.15, 0.15, 0.7)
+        end
+      end)
+
+      row:SetScript("OnLeave", function(self)
+        if selectedId ~= self.id then
+          bg:SetColorTexture(0.1, 0.1, 0.1, 0.5)
+        end
+      end)
+
       frame.rows[i] = row
     end
 
     local rightPane = CreateFrame("Frame", nil, frame, "BackdropTemplate")
-    rightPane:SetPoint("TOPLEFT", leftPane, "TOPRIGHT", 12, 0)
+    rightPane:SetPoint("TOPLEFT", divider, "TOPRIGHT", 4, 0)
     rightPane:SetPoint("BOTTOMRIGHT", -16, 16)
     MakeBackdrop(rightPane)
 

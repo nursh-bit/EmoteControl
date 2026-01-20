@@ -193,7 +193,7 @@ function addon:CreateTriggerBuilder()
   yOffset = yOffset - 50
 
   -- Buttons
-  local saveBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+  local saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   saveBtn:SetSize(120, 30)
   saveBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, 15)
   saveBtn:SetText("Save Trigger")
@@ -204,7 +204,7 @@ function addon:CreateTriggerBuilder()
     end
   end)
 
-  local newBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+  local newBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   newBtn:SetSize(120, 30)
   newBtn:SetPoint("BOTTOM", frame, "BOTTOM", 0, 15)
   newBtn:SetText("New Trigger")
@@ -218,7 +218,7 @@ function addon:CreateTriggerBuilder()
     addon:Print("New trigger created.")
   end)
 
-  local closeBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+  local closeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   closeBtn:SetSize(120, 30)
   closeBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 15)
   closeBtn:SetText("Close")

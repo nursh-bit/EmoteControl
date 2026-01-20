@@ -57,6 +57,9 @@ function addon:RegisterPack(pack)
     end
   end
   if type(pack.triggers) ~= "table" then pack.triggers = {} end
+  if pack.version == nil then
+    pack.version = addon.VERSION
+  end
   addon.Packs[pack.id] = pack
 end
 

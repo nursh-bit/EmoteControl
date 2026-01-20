@@ -5,7 +5,7 @@
 ## Version: 0.8.0
 ## Dependencies: SpeakinLite
 ## LoadOnDemand: 1
-## X-SpeakinLite-PackType: Race
-## X-SpeakinLite-Race: LIGHTFORGEDDRAENEI
+## X-EmoteControl-PackType: Race
+## X-EmoteControl-Race: LIGHTFORGEDDRAENEI
 
 Pack.lua
