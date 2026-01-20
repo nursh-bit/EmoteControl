@@ -10,7 +10,7 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.10.3"
+addon.VERSION = "0.10.4"
 addon.DB_VERSION = 2
 
 -- Create event frame for listener registration
