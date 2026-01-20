@@ -459,8 +459,14 @@ function addon:CreatePacksSettingsPanel()
         label = label .. " (not loaded)"
       end
       if entry.loadable == false then
-        local reason = entry.reason and (" " .. tostring(entry.reason)) or ""
-        label = label .. " (not loadable" .. reason .. ")"
+        local reason = tostring(entry.reason or "")
+        if reason == "DISABLED" then
+          label = label .. " (disabled in AddOns)"
+        elseif reason ~= "" then
+          label = label .. " (not loadable: " .. reason .. ")"
+        else
+          label = label .. " (not loadable)"
+        end
       end
 
       local show = true
@@ -480,7 +486,14 @@ function addon:CreatePacksSettingsPanel()
             SpeakinLiteDB = EmoteControlDB
           end
         end)
-        cb:SetChecked(db.packEnabled[entry.id] ~= false)
+        local enabled = db.packEnabled[entry.id] ~= false
+        cb:SetChecked(enabled)
+        if not enabled then
+          local textWidget = cb.Text or cb.text
+          if textWidget and textWidget.GetText and textWidget.SetText then
+            textWidget:SetText(textWidget:GetText() .. " (disabled)")
+          end
+        end
         table.insert(checkboxes, cb)
         y = y - 24
       end
