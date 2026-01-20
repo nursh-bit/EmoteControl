@@ -10,7 +10,7 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.9.5"
+addon.VERSION = "0.10.3"
 addon.DB_VERSION = 2
 
 -- Create event frame for listener registration
@@ -149,6 +149,9 @@ function addon:ApplySubs(template, ctx)
   ctx = ctx or {}
 
   local out = template
+  local function EscapeSubValue(value)
+    return tostring(value or ""):gsub("%%", "%%%%")
+  end
 
   -- <pick:a|b|c> - random selection from pipe-separated options
   out = out:gsub("<pick:([^>]+)>", function(body)
@@ -175,12 +178,28 @@ function addon:ApplySubs(template, ctx)
     spell = ctx.spell or "",
     target = ctx.target or "",
     zone = ctx.zone or "",
+    subzone = ctx.subzone or "",
+    mapID = ctx.mapID or "",
+    mapid = ctx.mapID or "",
+    continent = ctx.continent or "",
     spec = ctx.spec or "",
+    specID = ctx.specID or "",
+    specid = ctx.specID or "",
+    role = ctx.role or "",
     class = ctx.class or "",
+    className = ctx.className or "",
+    ["class-name"] = ctx.className or "",
     instance = ctx.instanceType or "",
+    instanceName = ctx.instanceName or "",
+    ["instance-name"] = ctx.instanceName or "",
+    instanceDifficulty = ctx.instanceDifficulty or "",
+    ["instance-difficulty"] = ctx.instanceDifficulty or "",
     race = ctx.race or "",
     guild = ctx.guild or "",
     level = ctx.level or "1",
+    realm = ctx.realm or "",
+    faction = ctx.faction or "",
+    ilvl = ctx.ilvl or "",
     -- Health and power tokens
     ["health%%"] = ctx.healthPct or "0",
     health = ctx.health or "0",
@@ -191,16 +210,29 @@ function addon:ApplySubs(template, ctx)
     powername = ctx.powerName or "Power",
     combo = ctx.combo or "0",
     ["target-health%%"] = ctx.targetHealthPct or "0",
+    ["target-health"] = ctx.targetHealth or "0",
+    ["target-healthmax"] = ctx.targetHealthMax or "0",
+    ["target-class"] = ctx.targetClass or "",
+    ["target-race"] = ctx.targetRace or "",
+    ["target-level"] = ctx.targetLevel or "",
+    ["target-dead"] = ctx.targetDead or "false",
     -- Loot and achievement tokens
     achievement = ctx.achievement or "",
     item = ctx.item or "",
     itemlink = ctx.itemLink or "",
     quality = ctx.quality or "",
+    -- Group and time tokens
+    ["group-size"] = ctx.groupSize or "1",
+    ["is-raid"] = ctx.isRaid or "false",
+    ["is-party"] = ctx.isParty or "false",
+    time = ctx.time or "",
+    date = ctx.date or "",
+    weekday = ctx.weekday or "",
   }
   
   -- Apply all token substitutions at once
   for token, value in pairs(tokens) do
-    out = out:gsub("<" .. token .. ">", value)
+    out = out:gsub("<" .. token .. ">", EscapeSubValue(value))
   end
 
   return out
@@ -545,7 +577,9 @@ end
 
 function addon:MakeContext(spellID, extraData)
   local _, instType = addon:GetInstanceType()
-  local _, specName = addon:GetSpecInfo()
+  local specID, specName = addon:GetSpecInfo()
+  local specIndex = type(GetSpecialization) == "function" and GetSpecialization() or nil
+  local role = (type(GetSpecializationRole) == "function" and specIndex) and GetSpecializationRole(specIndex) or ""
   
   -- Health and Power
   local health = UnitHealth("player") or 0
@@ -571,10 +605,12 @@ function addon:MakeContext(spellID, extraData)
   
   -- Target health
   local targetHealthPct = 0
+  local targetHealth = 0
+  local targetHealthMax = 1
   if UnitExists("target") then
-    local tHealth = UnitHealth("target") or 0
-    local tHealthMax = UnitHealthMax("target") or 1
-    targetHealthPct = math.floor((tHealth / tHealthMax) * 100)
+    targetHealth = UnitHealth("target") or 0
+    targetHealthMax = UnitHealthMax("target") or 1
+    targetHealthPct = math.floor((targetHealth / targetHealthMax) * 100)
   end
   
   -- Guild
@@ -586,13 +622,46 @@ function addon:MakeContext(spellID, extraData)
   -- Race
   local raceName = UnitRace("player") or ""
   
+  local name, realm = UnitName("player")
+  local faction = UnitFactionGroup("player") or ""
+  local className = UnitClass("player")
+  local subzone = GetSubZoneText() or ""
+  local mapID = (C_Map and type(C_Map.GetBestMapForUnit) == "function") and C_Map.GetBestMapForUnit("player") or nil
+  local continent = ""
+  if mapID and C_Map and type(C_Map.GetMapInfo) == "function" then
+    local info = C_Map.GetMapInfo(mapID)
+    if info and info.parentMapID then
+      local parent = C_Map.GetMapInfo(info.parentMapID)
+      continent = parent and parent.name or ""
+    end
+  end
+  local instanceName, _, _, _, _, _, _, instanceDifficultyID, instanceDifficultyName = GetInstanceInfo()
+  local equippedIlvl = select(2, GetAverageItemLevel())
+
+  local targetClassName = UnitClass("target")
+  local targetRaceName = UnitRace("target") or ""
+  local targetLevel = UnitLevel("target")
+  local targetDead = UnitIsDeadOrGhost("target") and "true" or "false"
+
+  local groupSize = GetNumGroupMembers() or 1
+  local isRaid = IsInRaid() and "true" or "false"
+  local isParty = (IsInGroup() and not IsInRaid()) and "true" or "false"
+
   local ctx = {
-    player = UnitName("player") or "",
+    player = name or "",
     target = UnitName("target") or "nobody",
     zone = addon:GetZone(),
+    subzone = subzone,
+    mapID = mapID or "",
+    continent = continent,
     class = addon:GetPlayerClass(),
+    className = className or "",
     spec = specName,
+    specID = specID or "",
+    role = role or "",
     instanceType = instType or "",
+    instanceName = instanceName or "",
+    instanceDifficulty = instanceDifficultyName or tostring(instanceDifficultyID or ""),
     spell = spellID and (addon:GetSpellName(spellID) or tostring(spellID)) or "",
     health = tostring(health),
     healthMax = tostring(healthMax),
@@ -603,9 +672,24 @@ function addon:MakeContext(spellID, extraData)
     powerName = powerName,
     combo = tostring(combo),
     targetHealthPct = tostring(targetHealthPct),
+    targetHealth = tostring(targetHealth),
+    targetHealthMax = tostring(targetHealthMax),
+    targetClass = targetClassName or "",
+    targetRace = targetRaceName,
+    targetLevel = tostring(targetLevel or ""),
+    targetDead = targetDead,
     guild = guildName,
     level = tostring(level),
     race = raceName,
+    realm = realm or GetRealmName() or "",
+    faction = faction,
+    groupSize = tostring(groupSize),
+    isRaid = isRaid,
+    isParty = isParty,
+    ilvl = tostring(equippedIlvl or ""),
+    time = date and date("%H:%M") or "",
+    date = date and date("%Y-%m-%d") or "",
+    weekday = date and date("%A") or "",
   }
   
   -- Merge any extra contextual data (for achievements, loot, etc)

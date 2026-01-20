@@ -371,8 +371,14 @@ local function BuildPacksPanel()
         label = label .. " (not loaded)"
       end
       if row.loadable == false then
-        local reason = row.reason and (" " .. tostring(row.reason)) or ""
-        label = label .. " (not loadable" .. reason .. ")"
+        local reason = tostring(row.reason or "")
+        if reason == "DISABLED" then
+          label = label .. " (disabled in AddOns)"
+        elseif reason ~= "" then
+          label = label .. " (not loadable: " .. reason .. ")"
+        else
+          label = label .. " (not loadable)"
+        end
       end
 
       local show = true
@@ -383,7 +389,14 @@ local function BuildPacksPanel()
       if show then
         local cb = MakeCheckbox(content, "EmoteControl_PackCB_" .. i, content, label, "")
         cb:SetPoint("TOPLEFT", 0, y)
-        cb:SetChecked(theDb.packEnabled[row.id] ~= false)
+        local enabled = theDb.packEnabled[row.id] ~= false
+        cb:SetChecked(enabled)
+        if not enabled then
+          local textWidget = cb.Text or cb.text
+          if textWidget and textWidget.GetText and textWidget.SetText then
+            textWidget:SetText(textWidget:GetText() .. " (disabled)")
+          end
+        end
         cb:SetScript("OnClick", function(self)
           if type(addon.SetPackEnabled) == "function" then
             addon:SetPackEnabled(row.id, self:GetChecked() and true or false, row.addonName)
@@ -471,20 +484,22 @@ end
 
 function addon:OpenPacksPanel()
   if Settings and type(Settings.OpenToCategory) == "function" then
-    if addon._settingsPacksCategory then
-      local ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory)
-      if ok then return end
-      if addon._settingsPacksCategory.ID then
-        ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory.ID)
-        if ok then return end
-      end
-      if type(addon._settingsPacksCategory.GetID) == "function" then
-        ok = pcall(Settings.OpenToCategory, addon._settingsPacksCategory:GetID())
-        if ok then return end
-      end
+    local function TryOpen(target)
+      if target == nil then return false end
+      local ok = pcall(Settings.OpenToCategory, target)
+      return ok == true
     end
+
+    if addon._settingsPacksCategory and TryOpen(addon._settingsPacksCategory) then return end
+    if addon._settingsPacksCategory and addon._settingsPacksCategory.ID and TryOpen(addon._settingsPacksCategory.ID) then return end
+    if addon._settingsPacksCategory and type(addon._settingsPacksCategory.GetID) == "function" then
+      if TryOpen(addon._settingsPacksCategory:GetID()) then return end
+    end
+    if TryOpen("Emote Control - Packs") then return end
+    if TryOpen("Packs") then return end
     if type(addon.OpenSettings) == "function" then
       addon:OpenSettings()
+      addon:Print("Packs panel not found; opened main settings instead.")
       return
     end
   end
