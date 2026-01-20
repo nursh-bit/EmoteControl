@@ -222,7 +222,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 30,
       category = "utility",
-      conditions = { spellName = "Spatial Rift" },
+      conditions = { spellID = 256948 }, -- Spatial Rift (Void Elf racial)
       messages = {
         "Spatial Rift. Tearing through reality.",
         "Opening a rift. Physics are optional.",
@@ -324,7 +324,7 @@ EmoteControl:RegisterPack({
       cooldown = 60,
       category = "flavor",
       channel = "EMOTE",
-      conditions = { spellName = "Portal", randomChance = 0.4 },
+      conditions = { spellName = { "Portal:*", "Teleport:*" }, randomChance = 0.4 },
       messages = {
         "weaves void energy into the portal.",
         "channels shadows alongside arcane power.",
