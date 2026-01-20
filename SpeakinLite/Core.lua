@@ -10,7 +10,7 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.10.3"
+addon.VERSION = "0.10.4"
 addon.DB_VERSION = 2
 
 -- Create event frame for listener registration
@@ -141,6 +141,89 @@ local function NoteGlobalSend()
   local now = GetTime()
   PruneSentTimes(now)
   table.insert(addon._sentTimes, now)
+end
+
+-- ========================================
+-- Minimap Button
+-- ========================================
+
+local function UpdateMinimapButtonPosition(btn)
+  if not btn or not db or not db.minimap then return end
+  local angle = tonumber(db.minimap.angle) or 225
+  local rad = math.rad(angle)
+  local radius = 80
+  local x = math.cos(rad) * radius
+  local y = math.sin(rad) * radius
+  btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 52 - x, y - 52)
+end
+
+local function CreateMinimapButton()
+  if addon._minimapButton or not Minimap then return end
+  if db and db.minimap and db.minimap.hide then return end
+
+  local btn = CreateFrame("Button", "EmoteControlMinimapButton", Minimap)
+  btn:SetSize(31, 31)
+  btn:SetFrameStrata("MEDIUM")
+  btn:SetMovable(true)
+  btn:RegisterForDrag("LeftButton")
+
+  local icon = btn:CreateTexture(nil, "BACKGROUND")
+  icon:SetTexture("Interface\\Icons\\INV_Misc_Note_01")
+  icon:SetSize(20, 20)
+  icon:SetPoint("CENTER")
+  btn.icon = icon
+
+  local border = btn:CreateTexture(nil, "OVERLAY")
+  border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
+  border:SetSize(54, 54)
+  border:SetPoint("CENTER", btn, "CENTER", 0, 0)
+
+  btn:SetScript("OnDragStart", function(self)
+    self._dragging = true
+  end)
+
+  btn:SetScript("OnDragStop", function(self)
+    self._dragging = false
+    if not db then return end
+    db.minimap = db.minimap or { hide = false, angle = 225 }
+    local x, y = GetCursorPosition()
+    local scale = UIParent:GetScale()
+    x = x / scale
+    y = y / scale
+    local mx, my = Minimap:GetCenter()
+    local angle = math.deg(math.atan2(y - my, x - mx))
+    db.minimap.angle = angle
+    UpdateMinimapButtonPosition(self)
+  end)
+
+  btn:SetScript("OnClick", function(self, button)
+    if self._dragging then return end
+    if button == "RightButton" then
+      if type(addon.OpenEditor) == "function" then
+        addon:OpenEditor()
+      end
+      return
+    end
+    if type(addon.OpenOptions) == "function" then
+      addon:OpenOptions()
+    end
+  end)
+
+  btn:SetScript("OnEnter", function(self)
+    GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+    GameTooltip:AddLine("Emote Control")
+    GameTooltip:AddLine("Left-click: Options", 1, 1, 1)
+    GameTooltip:AddLine("Right-click: Trigger Editor", 1, 1, 1)
+    GameTooltip:AddLine("Drag: Move", 1, 1, 1)
+    GameTooltip:Show()
+  end)
+
+  btn:SetScript("OnLeave", function()
+    GameTooltip:Hide()
+  end)
+
+  addon._minimapButton = btn
+  UpdateMinimapButtonPosition(btn)
 end
 
 -- Apply template substitutions (tokens and random selection) to a message
@@ -1786,6 +1869,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SetDefault(db, "enableLevelUpTriggers", true)
     SetDefault(db, "repairThreshold", 0.2)
     SetDefault(db, "onboardingShown", false)
+    SetDefault(db, "minimap", { hide = false, angle = 225 })
     SetDefault(db, "version", addon.DB_VERSION)
 
     if type(db.packEnabled) ~= "table" then db.packEnabled = {} end
@@ -1863,6 +1947,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon:LoadPacksForPlayer()
     addon:LoadCustomTriggers()  -- Load user-created triggers
     addon:RebuildAndRegister()
+    CreateMinimapButton()
     if type(addon.CreateSettingsPanel) == "function" then
       addon:CreateSettingsPanel()
     end
