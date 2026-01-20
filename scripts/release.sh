@@ -3,6 +3,7 @@ set -euo pipefail
 
 VERSION="${1:-}"
 PROJECT_ID="${2:-${CURSEFORGE_PROJECT_ID:-}}"
+SLUG="${CURSEFORGE_SLUG:-}"
 
 if [[ -z "$VERSION" ]]; then
   echo "Usage: $0 <version> [project_id]" >&2
@@ -17,6 +18,10 @@ fi
 if [[ -z "$PROJECT_ID" ]]; then
   echo "CurseForge project ID is required (arg or CURSEFORGE_PROJECT_ID)." >&2
   exit 1
+fi
+
+if [[ -z "$SLUG" && "$PROJECT_ID" == "1432552" ]]; then
+  SLUG="emote-control"
 fi
 
 command -v gh >/dev/null || { echo "gh is required in PATH." >&2; exit 1; }
@@ -123,7 +128,44 @@ print(json.dumps(meta))
 PY
 )"
 
-curl -sS -H "X-Api-Token: $CURSEFORGE_API_TOKEN" \
+upload_response="$(curl -sS -H "X-Api-Token: $CURSEFORGE_API_TOKEN" \
   -F "file=@$zip_path" \
   -F "metadata=$metadata_json" \
-  "https://wow.curseforge.com/api/projects/$PROJECT_ID/upload-file"
+  "https://wow.curseforge.com/api/projects/$PROJECT_ID/upload-file")"
+
+upload_id="$(python3 - <<'PY'
+import json,sys
+try:
+    data=json.loads(sys.stdin.read())
+    print(data.get("id",""))
+except Exception:
+    print("")
+PY
+<<<"$upload_response")"
+
+if [[ -n "$upload_id" ]]; then
+  echo "CurseForge upload file id: $upload_id"
+fi
+
+if [[ -n "$SLUG" ]]; then
+  python3 - <<'PY'
+import json,sys,urllib.request,os
+slug=os.environ.get("SLUG","")
+version=os.environ.get("VERSION","")
+upload_id=os.environ.get("UPLOAD_ID","")
+url=f"https://api.cfwidget.com/wow/addons/{slug}"
+with urllib.request.urlopen(url) as r:
+    data=json.load(r)
+files=data.get("files",[])
+latest=files[0] if files else {}
+ok_version = latest.get("display","").endswith(version)
+ok_id = (str(latest.get("id")) == str(upload_id)) if upload_id else True
+if not (ok_version and ok_id):
+    print("Warning: widget verification did not match latest file/version.", file=sys.stderr)
+    print(f"Latest: id={latest.get('id')} display={latest.get('display')}", file=sys.stderr)
+else:
+    print(f"Verified widget latest: id={latest.get('id')} display={latest.get('display')}")
+PY
+else
+  echo "CURSEFORGE_SLUG not set; skipping widget verification."
+fi
