@@ -119,7 +119,7 @@ EmoteControl:RegisterPack({
       id = "dk_death_grip",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 10,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Death Grip" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 49576 },
       messages = {
         "Death Grip. Come here and regret it.",
         "<target>, your personal space has been revoked.",
@@ -168,7 +168,7 @@ EmoteControl:RegisterPack({
       id = "dk_mind_freeze",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 8,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Mind Freeze" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 47528 },
       messages = {
         "Mind Freeze. Thoughts cancelled.",
         "Shhh. No more spells. Only silence.",
@@ -217,7 +217,7 @@ EmoteControl:RegisterPack({
       id = "dk_chains_of_ice",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 10,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Chains of Ice" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 45524 },
       messages = {
         "Chains of Ice. Running is no longer a lifestyle.",
         "<target>, your mobility subscription has expired.",
@@ -266,7 +266,7 @@ EmoteControl:RegisterPack({
       id = "dk_asphyxiate",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 20,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Asphyxiate" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 108194 },
       messages = {
         "Asphyxiate. Please pause all activities.",
         "Time out, <target>.",
@@ -317,7 +317,7 @@ EmoteControl:RegisterPack({
       id = "dk_anti_magic_shell",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 45,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Anti-Magic Shell" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 48707 },
       messages = {
         "Anti-Magic Shell. Your spells are now decorative.",
         "Magic? In this economy? Not on me.",
@@ -366,7 +366,7 @@ EmoteControl:RegisterPack({
       id = "dk_icebound_fortitude",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 60,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Icebound Fortitude" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 48792 },
       messages = {
         "Icebound Fortitude. I have become difficult.",
         "Pain is temporary. Spite is permanent.",
@@ -415,7 +415,7 @@ EmoteControl:RegisterPack({
       id = "dk_lichborne",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 45,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Lichborne" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 49039 },
       messages = {
         "Lichborne. Mortality status: optional.",
         "I have entered my spooky era.",
@@ -464,7 +464,7 @@ EmoteControl:RegisterPack({
       id = "dk_death_strike",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 20,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Death Strike" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 49998 },
       messages = {
         "Death Strike. I paid for that health in violence.",
         "Borrowed life returned with interest.",
@@ -515,7 +515,7 @@ EmoteControl:RegisterPack({
       id = "dk_death_and_decay",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 20,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Death and Decay" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 43265 },
       messages = {
         "Death and Decay. Please enjoy the ambiance.",
         "I have placed a bad circle on the ground. Do not stand in it.",
@@ -566,7 +566,7 @@ EmoteControl:RegisterPack({
       id = "dk_raise_dead",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 30,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Raise Dead" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 46584 },
       messages = {
         "Raise Dead. Team meeting, attendance required.",
         "Skeleton assistant deployed.",
@@ -615,7 +615,7 @@ EmoteControl:RegisterPack({
       id = "dk_army_of_the_dead",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 180,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Army of the Dead" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 42650 },
       messages = {
         "Army of the Dead. I have brought backups.",
         "This is now a group project.",
@@ -663,7 +663,7 @@ EmoteControl:RegisterPack({
       id = "dk_dark_transformation",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 45,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Dark Transformation" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 63560 },
       messages = {
         "Dark Transformation. Minion upgrade applied.",
         "Glow-up, but make it necrotic.",
@@ -711,7 +711,7 @@ EmoteControl:RegisterPack({
       id = "dk_summon_gargoyle",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 90,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Summon Gargoyle" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 49206 },
       messages = {
         "Summon Gargoyle. Air support is undead now.",
         "Look up. Bad news has wings.",
@@ -761,7 +761,7 @@ EmoteControl:RegisterPack({
       id = "dk_pillar_of_frost",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 45,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Pillar of Frost" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 51271 },
       messages = {
         "Pillar of Frost. I have become a winter thesis.",
         "Strength increased. Chill increased.",
@@ -811,7 +811,7 @@ EmoteControl:RegisterPack({
       id = "dk_dancing_rune_weapon",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 60,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Dancing Rune Weapon" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 49028 },
       messages = {
         "Dancing Rune Weapon. I brought a plus-one.",
         "My weapon is now doing interpretive violence.",
@@ -861,7 +861,7 @@ EmoteControl:RegisterPack({
       id = "dk_wraith_walk",
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 30,
-      conditions = { class = "DEATHKNIGHT", unit = "player", spellName = "Wraith Walk" },
+      conditions = { class = "DEATHKNIGHT", unit = "player", spellID = 212552 },
       messages = {
         "Wraith Walk. I am speed, but make it haunted.",
         "Ghosting this situation, literally.",
@@ -1105,7 +1105,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 12,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Obliterate" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 49020 },
       messages = {
         "Obliterate. The name is self-explanatory.",
         "Obliterating with two weapons. Efficiency.",
@@ -1120,7 +1120,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 15,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Frost Strike" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 49143 },
       messages = {
         "Frost Strike. Cold and calculated.",
         "Striking with winter's approval.",
@@ -1135,7 +1135,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 12,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Howling Blast" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 49184 },
       messages = {
         "Howling Blast. AoE winter deployed.",
         "Blasting with audible cold.",
@@ -1150,7 +1150,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 15,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Remorseless Winter" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 196770 },
       messages = {
         "Remorseless Winter. Winter without regret.",
         "Deploying a blizzard with attitude.",
@@ -1165,7 +1165,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 60,
       category = "cooldowns",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Empower Rune Weapon" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 47568 },
       messages = {
         "Empower Rune Weapon. Instant runes deployed.",
         "Rune battery fully charged.",
@@ -1180,7 +1180,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 60,
       category = "cooldowns",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Breath of Sindragosa" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 152279 },
       messages = {
         "Breath of Sindragosa. Channeling dragon winter.",
         "Sindragosa approved this breath attack.",
@@ -1195,7 +1195,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 90,
       category = "cooldowns",
-      conditions = { class = "DEATHKNIGHT", specID = 251, spellName = "Frostwyrm's Fury" },
+      conditions = { class = "DEATHKNIGHT", specID = 251, spellID = 279302 },
       messages = {
         "Frostwyrm's Fury. Summoning undead dragon rage.",
         "Frostwyrm deployed. The sky is now hostile.",
@@ -1214,7 +1214,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 12,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Scourge Strike" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 55090 },
       messages = {
         "Scourge Strike. Plague delivery system.",
         "Striking with infectious enthusiasm.",
@@ -1229,7 +1229,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 10,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Festering Strike" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 85948 },
       messages = {
         "Festering Strike. Wounds festering on demand.",
         "Infection multiplication protocol.",
@@ -1244,7 +1244,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 45,
       category = "cooldowns",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Apocalypse" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 275699 },
       messages = {
         "Apocalypse. End times on demand.",
         "Deploying the apocalypse. Locally.",
@@ -1259,7 +1259,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 15,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Outbreak" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 77575 },
       messages = {
         "Outbreak. Spreading diseases professionally.",
         "Plague distribution: initiated.",
@@ -1274,7 +1274,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 15,
       category = "rotation",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Epidemic" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 207317 },
       messages = {
         "Epidemic. Plague AoE deployed.",
         "Disease spreads. By design.",
@@ -1289,7 +1289,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 30,
       category = "cooldowns",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Unholy Blight" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 115989 },
       messages = {
         "Unholy Blight. Mass infection deployed.",
         "Blight engaged. Everyone gets sick.",
@@ -1319,7 +1319,7 @@ EmoteControl:RegisterPack({
       event = "UNIT_SPELLCAST_SUCCEEDED",
       cooldown = 60,
       category = "cooldowns",
-      conditions = { class = "DEATHKNIGHT", specID = 252, spellName = "Abomination Limb" },
+      conditions = { class = "DEATHKNIGHT", specID = 252, spellID = 315443 },
       messages = {
         "Abomination Limb. Summoning questionable anatomy.",
         "Giant arm deployed. Do not ask where from.",
