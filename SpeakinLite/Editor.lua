@@ -371,7 +371,7 @@ function addon:OpenEditor()
     hint:SetPoint("BOTTOMLEFT", reset, "TOPLEFT", 0, 10)
     hint:SetWidth(400)
     hint:SetJustifyH("LEFT")
-    hint:SetText("Tokens: <player> <spell> <target> <zone> <spec> <class> <instance> <race> <health%> <power%> <combo> <target-health%> <guild> <level> <achievement> <item>\n<pick:a|b|c>  |  <rng:1-100>")
+    hint:SetText("Tokens: <player> <realm> <faction> <class> <className> <spec> <specID> <role> <level> <ilvl> <race>\n<zone> <subzone> <mapID> <continent> <instance> <instanceName> <instanceDifficulty>\n<target> <target-class> <target-race> <target-level> <target-health> <target-health%> <target-dead>\n<health%> <power%> <combo> <guild> <achievement> <item> <itemlink> <quality>\n<group-size> <is-raid> <is-party> <time> <date> <weekday>\n<pick:a|b|c>  |  <rng:1-100>")
 
     frame:SetScript("OnShow", function()
       BuildList()
