@@ -2,7 +2,7 @@
 ## Title: EmoteControl
 ## Notes: Lightweight speech/announcement addon with modular phrase packs.
 ## Author: Nursh
-## Version: 0.10.4
+## Version: 0.10.5
 ## SavedVariables: EmoteControlDB
 ## X-Curse-Project-ID: 123456
 ## X-Wago-ID: 1a2b3c4d5e6f7g

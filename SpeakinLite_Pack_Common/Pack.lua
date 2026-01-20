@@ -2,6 +2,9 @@
 -- Universal triggers that work for all classes and races
 
 EmoteControl = EmoteControl or {}
+if type(EmoteControl.RegisterPack) ~= "function" then
+  return
+end
 local addon = EmoteControl
 
 local pack = {

@@ -10,11 +10,44 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.10.4"
+addon.VERSION = "0.10.5"
 addon.DB_VERSION = 2
+
+addon.L = addon.L or {}
+local L = addon.L
+
+local function InitLocale()
+  local defaults = {
+    WELCOME_1 = "Welcome! Use /sl options for quick setup and pack selection.",
+    WELCOME_2 = "Tip: Try SELF channel with 6s cooldown and 8/min for low spam.",
+    HELP_HEADER = "Commands:",
+    HELP_STATUS = "/sl status - View addon status",
+    HELP_STATS = "/sl stats - View usage statistics",
+    HELP_RESETSTATS = "/sl resetstats - Reset usage statistics",
+    HELP_MOOD = "/sl mood [profile] - Change personality (default/serious/humorous/dark/heroic)",
+    HELP_DEBUG = "/sl debug - View debug info",
+    HELP_OPTIONS = "/sl options - Open options panel",
+    HELP_PACKS = "/sl packs - Manage packs",
+    HELP_EDITOR = "/sl editor - Customize triggers",
+    HELP_BUILDER = "/sl builder - Create custom triggers visually",
+    HELP_IMPORTEXPORT = "/sl import | /sl export - Share configurations",
+    HELP_ONOFF = "/sl on | /sl off - Enable/disable addon",
+    HELP_CHANNEL = "/sl channel <type> - Set default channel",
+    HELP_COOLDOWN = "/sl cooldown <seconds> - Set global cooldown",
+    LOADED = "Emote Control loaded. /sl help",
+    AUTO_ENABLED = "Welcome! Auto-enabled your class, race, and daily activities packs.",
+  }
+
+  for k, v in pairs(defaults) do
+    if L[k] == nil then
+      L[k] = v
+    end
+  end
+end
 
 -- Create event frame for listener registration
 local frame = CreateFrame("Frame")
+local loadStart = GetTime()
 
 -- SavedVariables (initialized on PLAYER_LOGIN)
 local db
@@ -78,8 +111,8 @@ function addon:ApplyMigrations(db)
 end
 
 function addon:ShowOnboarding()
-  addon:Print("Welcome! Use /sl options for quick setup and pack selection.")
-  addon:Print("Tip: Try SELF channel with 6s cooldown and 8/min for low spam.")
+  addon:Print(L.WELCOME_1)
+  addon:Print(L.WELCOME_2)
 
   if type(addon.OpenOptions) == "function" then
     local inCombat = (type(InCombatLockdown) == "function") and InCombatLockdown()
@@ -137,24 +170,37 @@ local function GlobalRateOk()
   return #addon._sentTimes < maxPerMin
 end
 
-local function NoteGlobalSend()
+local function TryNoteGlobalSend()
+  if not db then return false end
+  local maxPerMin = tonumber(db.maxPerMinute)
+  if not maxPerMin or maxPerMin <= 0 then
+    return true
+  end
+
   local now = GetTime()
   PruneSentTimes(now)
+  if #addon._sentTimes >= maxPerMin then
+    return false
+  end
   table.insert(addon._sentTimes, now)
+  return true
 end
 
 -- ========================================
 -- Minimap Button
 -- ========================================
 
+local MINIMAP_RADIUS = 80
+local MINIMAP_CENTER_X = 52
+local MINIMAP_CENTER_Y = 52
+
 local function UpdateMinimapButtonPosition(btn)
   if not btn or not db or not db.minimap then return end
   local angle = tonumber(db.minimap.angle) or 225
   local rad = math.rad(angle)
-  local radius = 80
-  local x = math.cos(rad) * radius
-  local y = math.sin(rad) * radius
-  btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 52 - x, y - 52)
+  local x = math.cos(rad) * MINIMAP_RADIUS
+  local y = math.sin(rad) * MINIMAP_RADIUS
+  btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", MINIMAP_CENTER_X - x, y - MINIMAP_CENTER_Y)
 end
 
 local function CreateMinimapButton()
@@ -313,10 +359,13 @@ function addon:ApplySubs(template, ctx)
     weekday = ctx.weekday or "",
   }
   
-  -- Apply all token substitutions at once
-  for token, value in pairs(tokens) do
-    out = out:gsub("<" .. token .. ">", EscapeSubValue(value))
-  end
+  -- Apply all token substitutions in a single pass
+  out = out:gsub("<([^>]+)>", function(token)
+    if tokens[token] ~= nil then
+      return EscapeSubValue(tokens[token])
+    end
+    return "<" .. token .. ">"
+  end)
 
   return out
 end
@@ -325,13 +374,14 @@ end
 function addon:Output(msg, channelOverride)
   if not msg or msg == "" then return end
 
+  if not TryNoteGlobalSend() then return end
+
   local channel = channelOverride or (db and db.channel) or "SELF"
   channel = string.upper(channel)
 
   -- Self output is always safe and doesn't require group checks
   if channel == "SELF" then
     addon:Print(msg)
-    NoteGlobalSend()
     return
   end
 
@@ -344,13 +394,11 @@ function addon:Output(msg, channelOverride)
   elseif channel == "PARTY" then
     if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
       addon:Print(msg)
-      NoteGlobalSend()
       return
     end
   elseif channel == "RAID" then
     if not IsInRaid() then
       addon:Print(msg)
-      NoteGlobalSend()
       return
     end
   elseif channel == "INSTANCE" then
@@ -359,7 +407,6 @@ function addon:Output(msg, channelOverride)
         channel = "PARTY"
       else
         addon:Print(msg)
-        NoteGlobalSend()
         return
       end
     else
@@ -372,17 +419,16 @@ function addon:Output(msg, channelOverride)
     local ok, canSend = pcall(CanChatSend, channel, msg)
     if ok and canSend == false then
       addon:Print(msg)
-      NoteGlobalSend()
       return
     end
   end
 
   -- Attempt to send the message with fallback
-  local ok = pcall(SendChat, msg, channel)
+  local ok, err = pcall(SendChat, msg, channel)
   if not ok then
+    addon:Print("Chat failed: " .. tostring(err) .. ", sending to SELF.")
     addon:Print(msg)
   end
-  NoteGlobalSend()
 end
 
 function addon:IsSpellKnownByPlayer(spellID)
@@ -590,6 +636,26 @@ function addon:ShowStats()
   
   for _, data in ipairs(catSorted) do
     addon:Print(string.format("  %s: %d", data.cat, data.count))
+  end
+end
+
+function addon:PruneStats(maxAgeDays)
+  if not db or type(db.stats) ~= "table" then return end
+  if type(db.stats.triggers) ~= "table" then return end
+
+  local maxDays = tonumber(maxAgeDays) or 30
+  if maxDays < 1 then maxDays = 1 end
+  local cutoff = time() - (maxDays * 24 * 60 * 60)
+
+  for trigId, stat in pairs(db.stats.triggers) do
+    local lastFired = type(stat) == "table" and tonumber(stat.lastFired) or 0
+    local exists = addon.TriggerById and addon.TriggerById[trigId]
+    if not exists then
+      db.stats.triggers[trigId] = nil
+    elseif lastFired > 0 and lastFired < cutoff then
+      db.stats.triggers[trigId] = nil
+      db.stats.session[trigId] = nil
+    end
   end
 end
 
@@ -976,9 +1042,13 @@ function addon:MatchesTrigger(trig, eventName, args)
   end
   
   -- Random chance (0.0 to 1.0, where 0.5 = 50%)
-  if type(cond.randomChance) == "number" then
-    if math.random() > cond.randomChance then
-      return false
+  if cond.randomChance ~= nil then
+    local chance = tonumber(cond.randomChance)
+    if chance then
+      if chance <= 0 then return false end
+      if chance < 1 and math.random() > chance then
+        return false
+      end
     end
   end
   
@@ -1008,11 +1078,13 @@ function addon:MatchesTrigger(trig, eventName, args)
     else
       size = 1
     end
-    
-    if cond.groupSize.min and size < cond.groupSize.min then
+
+    local minSize = tonumber(cond.groupSize.min)
+    local maxSize = tonumber(cond.groupSize.max)
+    if minSize and size < minSize then
       return false
     end
-    if cond.groupSize.max and size > cond.groupSize.max then
+    if maxSize and size > maxSize then
       return false
     end
   end
@@ -1052,21 +1124,87 @@ function addon:MatchesTrigger(trig, eventName, args)
   end
   
   -- Health percentage threshold
-  if type(cond.healthBelow) == "number" or type(cond.healthAbove) == "number" then
+  if cond.healthBelow ~= nil or cond.healthAbove ~= nil then
+    local below = tonumber(cond.healthBelow)
+    local above = tonumber(cond.healthAbove)
     local healthMax = UnitHealthMax("player") or 0
     local healthPct = 0
     if healthMax > 0 then
       healthPct = (UnitHealth("player") / healthMax) * 100
     end
-    if type(cond.healthBelow) == "number" and healthPct >= cond.healthBelow then
-      return false
+    if below then
+      below = addon:ClampNumber(below, 0, 100)
+      if healthPct >= below then return false end
     end
-    if type(cond.healthAbove) == "number" and healthPct <= cond.healthAbove then
-      return false
+    if above then
+      above = addon:ClampNumber(above, 0, 100)
+      if healthPct <= above then return false end
     end
   end
 
   return true
+end
+
+local PACK_PREFIXES = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
+
+local function Addons_Load(name)
+  if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
+    pcall(C_AddOns.LoadAddOn, name)
+    return
+  end
+  if type(LoadAddOn) == "function" then
+    pcall(LoadAddOn, name)
+  end
+end
+
+local function Addons_GetNum()
+  if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
+    return C_AddOns.GetNumAddOns()
+  end
+  if type(GetNumAddOns) == "function" then
+    return GetNumAddOns()
+  end
+  return 0
+end
+
+local function Addons_GetInfo(i)
+  if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
+    return C_AddOns.GetAddOnInfo(i)
+  end
+  if type(GetAddOnInfo) == "function" then
+    return GetAddOnInfo(i)
+  end
+  return nil
+end
+
+local function Addons_GetMeta(addonName, field)
+  if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
+    return C_AddOns.GetAddOnMetadata(addonName, field)
+  end
+  if type(GetAddOnMetadata) == "function" then
+    return GetAddOnMetadata(addonName, field)
+  end
+  return nil
+end
+
+local function Addons_IsLoaded(addonName)
+  if C_AddOns and type(C_AddOns.IsAddOnLoaded) == "function" then
+    return C_AddOns.IsAddOnLoaded(addonName)
+  end
+  if type(IsAddOnLoaded) == "function" then
+    return IsAddOnLoaded(addonName)
+  end
+  return false
+end
+
+local function HasPackPrefix(name)
+  if type(name) ~= "string" then return false end
+  for _, prefix in ipairs(PACK_PREFIXES) do
+    if string.sub(name, 1, #prefix) == prefix then
+      return true
+    end
+  end
+  return false
 end
 
 function addon:LoadPacksForPlayer()
@@ -1081,70 +1219,21 @@ function addon:LoadPacksForPlayer()
   --   ## X-EmoteControl-Race: VOIDELF
   -- (Legacy keys with X-SpeakinLite-* are also supported.)
 
-  local function Load(name)
-    if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
-      pcall(C_AddOns.LoadAddOn, name)
-      return
-    end
-    if type(LoadAddOn) == "function" then
-      pcall(LoadAddOn, name)
-    end
-  end
-
-  local function GetNum()
-    if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
-      return C_AddOns.GetNumAddOns()
-    end
-    if type(GetNumAddOns) == "function" then
-      return GetNumAddOns()
-    end
-    return 0
-  end
-
-  local function GetInfo(i)
-    if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
-      return C_AddOns.GetAddOnInfo(i)
-    end
-    if type(GetAddOnInfo) == "function" then
-      return GetAddOnInfo(i)
-    end
-    return nil
-  end
-
-  local function GetMeta(addonName, field)
-    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
-      return C_AddOns.GetAddOnMetadata(addonName, field)
-    end
-    if type(GetAddOnMetadata) == "function" then
-      return GetAddOnMetadata(addonName, field)
-    end
-    return nil
-  end
-
   local playerClass = addon:SafeLower(addon:GetPlayerClass()) or ""
   local playerRace = addon:SafeLower(addon:GetPlayerRaceFile()) or ""
 
-  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
-  local function HasPackPrefix(name)
-    for _, prefix in ipairs(prefixes) do
-      if string.sub(name, 1, #prefix) == prefix then
-        return true
-      end
-    end
-    return false
-  end
-  local n = GetNum()
+  local n = Addons_GetNum()
   for i = 1, n do
-    local name = GetInfo(i)
+    local name = Addons_GetInfo(i)
     if type(name) == "string" and HasPackPrefix(name) then
       local packType = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+        Addons_GetMeta(name, "X-EmoteControl-PackType") or Addons_GetMeta(name, "X-SpeakinLite-PackType")
       )
       local classTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+        Addons_GetMeta(name, "X-EmoteControl-Class") or Addons_GetMeta(name, "X-SpeakinLite-Class")
       )
       local raceTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+        Addons_GetMeta(name, "X-EmoteControl-Race") or Addons_GetMeta(name, "X-SpeakinLite-Race")
       )
 
       -- Determine if we should load this pack
@@ -1169,7 +1258,7 @@ function addon:LoadPacksForPlayer()
       end
       
       if shouldLoad then
-        Load(name)
+        Addons_Load(name)
       end
     end
   end
@@ -1177,8 +1266,7 @@ end
 
 local function NormalizePackIdFromAddonName(name)
   if type(name) ~= "string" then return nil end
-  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
-  for _, prefix in ipairs(prefixes) do
+  for _, prefix in ipairs(PACK_PREFIXES) do
     if string.sub(name, 1, #prefix) == prefix then
       name = string.sub(name, #prefix + 1)
       break
@@ -1193,72 +1281,21 @@ end
 function addon:GetAvailablePackAddOns()
   local packs = {}
 
-  local function GetNum()
-    if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
-      return C_AddOns.GetNumAddOns()
-    end
-    if type(GetNumAddOns) == "function" then
-      return GetNumAddOns()
-    end
-    return 0
-  end
-
-  local function GetInfo(i)
-    if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
-      return C_AddOns.GetAddOnInfo(i)
-    end
-    if type(GetAddOnInfo) == "function" then
-      return GetAddOnInfo(i)
-    end
-    return nil
-  end
-
-  local function GetMeta(addonName, field)
-    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
-      return C_AddOns.GetAddOnMetadata(addonName, field)
-    end
-    if type(GetAddOnMetadata) == "function" then
-      return GetAddOnMetadata(addonName, field)
-    end
-    return nil
-  end
-
-  local function IsLoaded(addonName)
-    if C_AddOns and type(C_AddOns.IsAddOnLoaded) == "function" then
-      return C_AddOns.IsAddOnLoaded(addonName)
-    end
-    if type(IsAddOnLoaded) == "function" then
-      return IsAddOnLoaded(addonName)
-    end
-    return false
-  end
-
-  local function HasPackPrefix(name)
-    if type(name) ~= "string" then return false end
-    local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
-    for _, prefix in ipairs(prefixes) do
-      if string.sub(name, 1, #prefix) == prefix then
-        return true
-      end
-    end
-    return false
-  end
-
-  local n = GetNum()
+  local n = Addons_GetNum()
   for i = 1, n do
-    local name, title, notes, loadable, reason, security = GetInfo(i)
+    local name, title, notes, loadable, reason, security = Addons_GetInfo(i)
     if type(name) == "string" and HasPackPrefix(name) then
       local packType = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+        Addons_GetMeta(name, "X-EmoteControl-PackType") or Addons_GetMeta(name, "X-SpeakinLite-PackType")
       )
       local classTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+        Addons_GetMeta(name, "X-EmoteControl-Class") or Addons_GetMeta(name, "X-SpeakinLite-Class")
       )
       local raceTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+        Addons_GetMeta(name, "X-EmoteControl-Race") or Addons_GetMeta(name, "X-SpeakinLite-Race")
       )
       local packId = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-PackId") or GetMeta(name, "X-SpeakinLite-PackId")
+        Addons_GetMeta(name, "X-EmoteControl-PackId") or Addons_GetMeta(name, "X-SpeakinLite-PackId")
       )
 
       if not packId or packId == "" then
@@ -1277,7 +1314,7 @@ function addon:GetAvailablePackAddOns()
           addonName = name,
           title = title or name,
           loadable = loadable,
-          loaded = IsLoaded(name),
+          loaded = Addons_IsLoaded(name),
           packType = packType,
           classTag = classTag,
           raceTag = raceTag,
@@ -1565,13 +1602,21 @@ function addon:HandleEvent(eventName, ...)
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    addon._combatLogInfo = addon._combatLogInfo or {}
+    -- Reuse a single table for combat log event info to avoid per-event allocations
     local eventInfo = addon._combatLogInfo
-    eventInfo[1], eventInfo[2], eventInfo[3], eventInfo[4], eventInfo[5], eventInfo[6], eventInfo[7],
-    eventInfo[8], eventInfo[9], eventInfo[10], eventInfo[11], eventInfo[12], eventInfo[13], eventInfo[14],
-    eventInfo[15], eventInfo[16], eventInfo[17], eventInfo[18], eventInfo[19], eventInfo[20], eventInfo[21] =
-      CombatLogGetCurrentEventInfo()
+    if not eventInfo then
+      eventInfo = {}
+      addon._combatLogInfo = eventInfo
+    else
+      wipe(eventInfo)
+    end
 
+    -- Populate only the indices we actually use from CombatLogGetCurrentEventInfo
+    local _
+    _, eventInfo[2], _, eventInfo[4], _, _, _, _, eventInfo[9],
+      eventInfo[10], eventInfo[11], eventInfo[12], eventInfo[13],
+      eventInfo[14], eventInfo[15], eventInfo[16], eventInfo[17],
+      eventInfo[18], eventInfo[19], eventInfo[20], eventInfo[21] = CombatLogGetCurrentEventInfo()
     local subevent = eventInfo[2]
     local sourceGUID = eventInfo[4]
     local destName = eventInfo[9]
@@ -1660,20 +1705,20 @@ function addon:HandleEvent(eventName, ...)
 end
 
 local function PrintHelp()
-  addon:Print("Commands:")
-  addon:Print("/sl status - View addon status")
-  addon:Print("/sl stats - View usage statistics")
-  addon:Print("/sl resetstats - Reset usage statistics")
-  addon:Print("/sl mood [profile] - Change personality (default/serious/humorous/dark/heroic)")
-  addon:Print("/sl debug - View debug info")
-  addon:Print("/sl options - Open options panel")
-  addon:Print("/sl packs - Manage packs")
-  addon:Print("/sl editor - Customize triggers")
-  addon:Print("/sl builder - Create custom triggers visually")
-  addon:Print("/sl import | /sl export - Share configurations")
-  addon:Print("/sl on | /sl off - Enable/disable addon")
-  addon:Print("/sl channel <type> - Set default channel")
-  addon:Print("/sl cooldown <seconds> - Set global cooldown")
+  addon:Print(L.HELP_HEADER)
+  addon:Print(L.HELP_STATUS)
+  addon:Print(L.HELP_STATS)
+  addon:Print(L.HELP_RESETSTATS)
+  addon:Print(L.HELP_MOOD)
+  addon:Print(L.HELP_DEBUG)
+  addon:Print(L.HELP_OPTIONS)
+  addon:Print(L.HELP_PACKS)
+  addon:Print(L.HELP_EDITOR)
+  addon:Print(L.HELP_BUILDER)
+  addon:Print(L.HELP_IMPORTEXPORT)
+  addon:Print(L.HELP_ONOFF)
+  addon:Print(L.HELP_CHANNEL)
+  addon:Print(L.HELP_COOLDOWN)
 end
 
 local function HandleSlash(msg)
@@ -1709,6 +1754,9 @@ local function HandleSlash(msg)
   
   if cmd == "debug" then
     addon:Print("=== Debug Info ===")
+    if type(addon._loadTime) == "number" then
+      addon:Print("Load time: " .. string.format("%.2f", addon._loadTime * 1000) .. "ms")
+    end
     addon:Print("Settings API: " .. tostring(Settings ~= nil))
     addon:Print("Settings.OpenToCategory: " .. tostring(Settings and type(Settings.OpenToCategory) == "function"))
     addon:Print("Settings Category: " .. tostring(addon._settingsCategory ~= nil))
@@ -1854,6 +1902,8 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     db = EmoteControlDB
     addon.db = db
 
+    InitLocale()
+
     SetDefault(db, "enabled", true)
     SetDefault(db, "channel", "EMOTE")
     SetDefault(db, "fallbackToSelf", true)
@@ -1930,7 +1980,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       db.packEnabled["common"] = true
       db.packEnabled["dailyactivities"] = true
       
-      addon:Print("Welcome! Auto-enabled your class, race, and daily activities packs.")
+      addon:Print(L.AUTO_ENABLED)
     end
 
     -- Seed random number generator (if available)
@@ -1947,6 +1997,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon:LoadPacksForPlayer()
     addon:LoadCustomTriggers()  -- Load user-created triggers
     addon:RebuildAndRegister()
+    addon:PruneStats(30)
     CreateMinimapButton()
     if type(addon.CreateSettingsPanel) == "function" then
       addon:CreateSettingsPanel()
@@ -1960,7 +2011,8 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       addon:ShowOnboarding()
     end
 
-    addon:Print("Emote Control loaded. /sl help")
+    addon._loadTime = GetTime() - loadStart
+    addon:Print(L.LOADED)
     return
   end
 
