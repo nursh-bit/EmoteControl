@@ -86,7 +86,9 @@ local function BuildMainPanel()
   local spamHeader = MakeSubTitle(panel, cbFallback, "Spam control")
   local sCooldown = MakeSlider(panel, "EmoteControl_SL_Cooldown", spamHeader, "Global cooldown (seconds)", 0, 60, 1)
   local sMaxPerMin = MakeSlider(panel, "EmoteControl_SL_MaxPerMin", sCooldown, "Max messages per minute", 0, 60, 1)
-  local ddRotation = MakeDropdown(panel, "EmoteControl_DD_Rotation", sMaxPerMin, "Rotation protection", 200)
+  local cbAdaptive = MakeCheckbox(panel, "EmoteControl_CB_Adaptive", sMaxPerMin, "Adaptive cooldowns when chat is busy", "Scales cooldowns up when near the per-minute limit.")
+  local sAdaptiveMax = MakeSlider(panel, "EmoteControl_SL_AdaptiveMax", cbAdaptive, "Adaptive cooldown max multiplier", 1, 5, 0.5)
+  local ddRotation = MakeDropdown(panel, "EmoteControl_DD_Rotation", sAdaptiveMax, "Rotation protection", 200)
 
   local triggerHeader = MakeSubTitle(panel, ddRotation, "Triggers")
   local cbSpell = MakeCheckbox(panel, "EmoteControl_CB_Spell", triggerHeader, "Enable spell triggers", "Announce spell casts (UNIT_SPELLCAST_SUCCEEDED).")
@@ -99,7 +101,10 @@ local function BuildMainPanel()
   local cbAchievement = MakeCheckbox(panel, "EmoteControl_CB_Achievements", cbLoot, "Enable achievement triggers", "ACHIEVEMENT_EARNED.")
   local cbLevelUp = MakeCheckbox(panel, "EmoteControl_CB_LevelUp", cbAchievement, "Enable level-up triggers", "PLAYER_LEVEL_UP.")
 
-  local setupHeader = MakeSubTitle(panel, cbLevelUp, "Quick Setup")
+  local packProfileHeader = MakeSubTitle(panel, cbLevelUp, "Pack Profiles")
+  local cbPackProfiles = MakeCheckbox(panel, "EmoteControl_CB_PackProfiles", packProfileHeader, "Use spec-based pack profiles", "Pack enable states are saved per spec.")
+
+  local setupHeader = MakeSubTitle(panel, cbPackProfiles, "Quick Setup")
   local btnDefaults = CreateFrame("Button", "EmoteControl_Btn_Defaults", panel, "UIPanelButtonTemplate")
   btnDefaults:SetSize(200, 22)
   btnDefaults:SetPoint("TOPLEFT", setupHeader, "BOTTOMLEFT", 0, -10)
@@ -143,9 +148,12 @@ local function BuildMainPanel()
     cbLoot:SetChecked(theDb.enableLootTriggers ~= false)
     cbAchievement:SetChecked(theDb.enableAchievementTriggers ~= false)
     cbLevelUp:SetChecked(theDb.enableLevelUpTriggers ~= false)
+    cbPackProfiles:SetChecked(theDb.packProfilesEnabled and true or false)
 
     sCooldown:SetValue(addon:ClampNumber(tonumber(theDb.globalCooldown) or 6, 0, 60))
     sMaxPerMin:SetValue(addon:ClampNumber(tonumber(theDb.maxPerMinute) or 12, 0, 60))
+    cbAdaptive:SetChecked(theDb.adaptiveCooldowns and true or false)
+    sAdaptiveMax:SetValue(addon:ClampNumber(tonumber(theDb.adaptiveCooldownMax) or 2, 1, 5))
 
     local ch = (type(theDb.channel) == "string" and theDb.channel) or "SELF"
     SetDropdownText(ddChannel, ch)
@@ -182,6 +190,14 @@ local function BuildMainPanel()
   cbNonSpell:SetScript("OnClick", function(self)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     theDb.enableNonSpellTriggers = self:GetChecked() and true or false
+  end)
+
+  cbPackProfiles:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.packProfilesEnabled = self:GetChecked() and true or false
+    if type(addon.RebuildAndRegister) == "function" then
+      addon:RebuildAndRegister()
+    end
   end)
 
   cbOnlyLearned:SetScript("OnClick", function(self)
@@ -238,6 +254,18 @@ local function BuildMainPanel()
     _G["EmoteControl_SL_MaxPerMinText"]:SetText("Max messages per minute: " .. v)
   end)
 
+  cbAdaptive:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    theDb.adaptiveCooldowns = self:GetChecked() and true or false
+  end)
+
+  sAdaptiveMax:SetScript("OnValueChanged", function(self, value)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    local v = addon:ClampNumber(tonumber(value) or 2, 1, 5)
+    theDb.adaptiveCooldownMax = v
+    _G["EmoteControl_SL_AdaptiveMaxText"]:SetText("Adaptive cooldown max multiplier: " .. v)
+  end)
+
   UIDropDownMenu_Initialize(ddChannel, function(self, level)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
 
@@ -253,6 +281,7 @@ local function BuildMainPanel()
     end
 
     Add("Self", "SELF")
+    Add("Auto", "AUTO")
     Add("Party", "PARTY")
     Add("Raid", "RAID")
     Add("Instance", "INSTANCE")
@@ -389,7 +418,7 @@ local function BuildPacksPanel()
       if show then
         local cb = MakeCheckbox(content, "EmoteControl_PackCB_" .. i, content, label, "")
         cb:SetPoint("TOPLEFT", 0, y)
-        local enabled = theDb.packEnabled[row.id] ~= false
+        local enabled = (type(addon.GetPackEnabled) == "function") and addon:GetPackEnabled(row.id) or (theDb.packEnabled[row.id] ~= false)
         cb:SetChecked(enabled)
         if not enabled then
           local textWidget = cb.Text or cb.text
@@ -424,36 +453,48 @@ local mainPanel = BuildMainPanel()
 local packsPanel = BuildPacksPanel()
 
 local function TryLoadInterfaceOptions()
-  if InterfaceOptions_AddCategory and InterfaceOptionsFrame_OpenToCategory then
+  local legacyAddCategory = rawget(_G, "InterfaceOptions_AddCategory")
+  local legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
+  if legacyAddCategory and legacyOpenToCategory then
     return true
   end
 
   if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
     pcall(C_AddOns.LoadAddOn, "Blizzard_InterfaceOptions")
   end
-  if type(LoadAddOn) == "function" then
-    pcall(LoadAddOn, "Blizzard_InterfaceOptions")
+  local legacyLoadAddOn = rawget(_G, "LoadAddOn")
+  if type(legacyLoadAddOn) == "function" then
+    pcall(legacyLoadAddOn, "Blizzard_InterfaceOptions")
   end
 
-  return (InterfaceOptions_AddCategory and InterfaceOptionsFrame_OpenToCategory) and true or false
+  legacyAddCategory = rawget(_G, "InterfaceOptions_AddCategory")
+  legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
+  return (legacyAddCategory and legacyOpenToCategory) and true or false
 end
 
 local interfaceOptionsReady = TryLoadInterfaceOptions()
 
 if interfaceOptionsReady then
-  pcall(InterfaceOptions_AddCategory, mainPanel)
-  pcall(InterfaceOptions_AddCategory, packsPanel)
+  local legacyAddCategory = rawget(_G, "InterfaceOptions_AddCategory")
+  local legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
+  if legacyAddCategory then
+    pcall(legacyAddCategory, mainPanel)
+    pcall(legacyAddCategory, packsPanel)
+  end
 
   -- Legacy alias so users can still find "SpeakinLite" in options
   local legacyPanel = CreateFrame("Frame")
   legacyPanel.name = "SpeakinLite"
   legacyPanel:SetScript("OnShow", function()
-    if InterfaceOptionsFrame_OpenToCategory then
-      InterfaceOptionsFrame_OpenToCategory(mainPanel)
-      InterfaceOptionsFrame_OpenToCategory(mainPanel)
+    local openFn = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
+    if type(openFn) == "function" then
+      openFn(mainPanel)
+      openFn(mainPanel)
     end
   end)
-  pcall(InterfaceOptions_AddCategory, legacyPanel)
+  if legacyAddCategory then
+    pcall(legacyAddCategory, legacyPanel)
+  end
 end
 
 function addon:OpenOptions()
@@ -465,9 +506,10 @@ function addon:OpenOptions()
   end
 
   -- Try legacy Interface Options
-  if interfaceOptionsReady and InterfaceOptionsFrame_OpenToCategory then
-    InterfaceOptionsFrame_OpenToCategory(mainPanel)
-    InterfaceOptionsFrame_OpenToCategory(mainPanel)
+  local legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
+  if interfaceOptionsReady and type(legacyOpenToCategory) == "function" then
+    legacyOpenToCategory(mainPanel)
+    legacyOpenToCategory(mainPanel)
     return
   end
 
@@ -504,9 +546,10 @@ function addon:OpenPacksPanel()
     end
   end
 
-  if interfaceOptionsReady and InterfaceOptionsFrame_OpenToCategory then
-    InterfaceOptionsFrame_OpenToCategory(packsPanel)
-    InterfaceOptionsFrame_OpenToCategory(packsPanel)
+  local legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
+  if interfaceOptionsReady and type(legacyOpenToCategory) == "function" then
+    legacyOpenToCategory(packsPanel)
+    legacyOpenToCategory(packsPanel)
     return
   end
 

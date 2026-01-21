@@ -249,6 +249,7 @@ function addon:CreateSettingsPanel()
 
   local channels = {
     { label = "Self (local chat frame)", value = "SELF" },
+    { label = "Auto (party/raid/instance, else self)", value = "AUTO" },
     { label = "Party", value = "PARTY" },
     { label = "Raid", value = "RAID" },
     { label = "Instance", value = "INSTANCE" },
@@ -302,7 +303,51 @@ function addon:CreateSettingsPanel()
     SetSliderLabel(self, db.globalCooldown)
   end)
 
+  y = y - 48
+  local sliderMaxPerMin = CreateSlider(content, "Max messages per minute", 16, y, 0, 60, 1)
+  sliderMaxPerMin:SetScript("OnValueChanged", function(self, value)
+    local db = addon:GetDB() or {}
+    db.maxPerMinute = math.floor(value + 0.5)
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+    SetSliderLabel(self, db.maxPerMinute)
+  end)
+
+  y = y - 38
+  local sliderAdaptiveMax
+  local cbAdaptive = CreateCheckbox(content, "Adaptive cooldowns when chat is busy", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.adaptiveCooldowns = v
+    if sliderAdaptiveMax and sliderAdaptiveMax.SetEnabled then
+      sliderAdaptiveMax:SetEnabled(v and true or false)
+    end
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+  end)
+
+  y = y - 28
+  sliderAdaptiveMax = CreateSlider(content, "Adaptive cooldown max multiplier", 16, y, 1, 5, 0.5)
+  sliderAdaptiveMax:SetScript("OnValueChanged", function(self, value)
+    local db = addon:GetDB() or {}
+    db.adaptiveCooldownMax = value
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+    SetSliderLabel(self, string.format("%.1f", value))
+  end)
+
   y = y - 60
+
+  local cbPackProfiles = CreateCheckbox(content, "Use spec-based pack profiles", 16, y, function(v)
+    local db = addon:GetDB() or {}
+    db.packProfilesEnabled = v
+    EmoteControlDB = db
+    SpeakinLiteDB = EmoteControlDB
+    if type(addon.RebuildAndRegister) == "function" then
+      addon:RebuildAndRegister()
+    end
+  end)
+
+  y = y - 32
 
   -- Packs
   CreateLabel(content, "Packs", 16, y)
@@ -367,6 +412,15 @@ function addon:CreateSettingsPanel()
     SetChannel((type(db.channel) == "string" and string.upper(db.channel)) or "SELF")
     slider:SetValue(tonumber(db.globalCooldown) or 6)
     SetSliderLabel(slider, tonumber(db.globalCooldown) or 6)
+    sliderMaxPerMin:SetValue(tonumber(db.maxPerMinute) or 12)
+    SetSliderLabel(sliderMaxPerMin, tonumber(db.maxPerMinute) or 12)
+    cbAdaptive:SetChecked(db.adaptiveCooldowns and true or false)
+    sliderAdaptiveMax:SetValue(tonumber(db.adaptiveCooldownMax) or 2)
+    SetSliderLabel(sliderAdaptiveMax, string.format("%.1f", tonumber(db.adaptiveCooldownMax) or 2))
+    if sliderAdaptiveMax.SetEnabled then
+      sliderAdaptiveMax:SetEnabled(db.adaptiveCooldowns and true or false)
+    end
+    cbPackProfiles:SetChecked(db.packProfilesEnabled and true or false)
 
   end)
 
@@ -486,7 +540,7 @@ function addon:CreatePacksSettingsPanel()
             SpeakinLiteDB = EmoteControlDB
           end
         end)
-        local enabled = db.packEnabled[entry.id] ~= false
+        local enabled = (type(addon.GetPackEnabled) == "function") and addon:GetPackEnabled(entry.id) or (db.packEnabled[entry.id] ~= false)
         cb:SetChecked(enabled)
         if not enabled then
           local textWidget = cb.Text or cb.text

@@ -153,7 +153,7 @@ local pack = {
       {"Boom!", "Pow!"},
       {
         category = "rotation",
-        randomChance = 50
+        randomChance = 0.5
       }
     )
   }
@@ -171,7 +171,7 @@ local trigger = {
   
   -- Enhanced conditions
   inCombat = true,  -- Only in combat
-  randomChance = 75,  -- 75% chance
+  randomChance = 0.75,  -- 75% chance
   hasAura = "Blessing of Kings",  -- Requires aura
   groupSize = 5,  -- Only in groups of 5+
 }
@@ -185,8 +185,22 @@ All message templates now support these dynamic tokens:
 - **Power**: `<power>`, `<power%%>`, `<powermax>`, `<powername>`
 - **Combo**: `<combo>`
 - **Target**: `<target>`, `<target-health%%>`
+- **Target Details**: `<target-full>`, `<target-realm>`, `<target-class>`, `<target-race>`, `<target-level>`
 - **Selection**: `<pick:a|b|c>`
 - **Random**: `<rng:1-100>`
+- **Instance**: `<instance>`, `<instance-type>`, `<instanceName>`, `<instanceDifficulty>`, `<instance-difficulty-id>`, `<instance-mapid>`, `<instance-lfgid>`, `<in-instance>`
+- **Group**: `<group-size>`, `<party-size>`, `<group-type>`
+- **Mythic+**: `<keystone-level>`, `<keystone-mapid>`, `<affixes>`, `<affix-1>` ... `<affix-4>`
+
+You can also localize message lists by client locale:
+
+```lua
+messages = {
+  enUS = {"Ready!"},
+  esES = {"¡Listo!"},
+  default = {"Ready!"}
+}
+```
 
 ### 4. Mood-Specific Messages
 
@@ -272,11 +286,11 @@ For questions or issues:
 
 ## Version History
 
-### 0.9.5 (Current)
-- Renamed namespace to EmoteControl
-- Added LibEmoteControl API
-- Improved code structure and organization
-- Better documentation
+### 0.10.5 (Current)
+- Added AUTO channel, quiet hours, and adaptive cooldowns
+- Added locale message tables and spec-based pack profiles
+- Expanded context tokens and slash commands
+- Improved pack discovery/listing and trigger builder conditions
 
 ### 0.9.4 and earlier
 - Original SpeakinLite releases

@@ -9,13 +9,11 @@ EmoteControl:GetDB()
 -- Returns the current database table
 -- Returns: table or nil
 
-EmoteControl:GetVersion()
--- Returns current addon version
--- Returns: string (e.g., "0.9.5")
+EmoteControl.VERSION
+-- Current addon version string (e.g., "0.10.5")
 
-EmoteControl:IsEnabled()
--- Check if addon is globally enabled
--- Returns: boolean
+EmoteControl.DB_VERSION
+-- Current database schema version (e.g., 5)
 ```
 
 ### Pack Management
@@ -57,9 +55,9 @@ EmoteControl:TriggerCooldownOk(trigger)
 -- Check if trigger cooldown has elapsed
 -- Returns: boolean
 
-EmoteControl:ExecuteTrigger(trigger, context)
+EmoteControl:FireTrigger(trigger, context)
 -- Execute a trigger and send its message
--- Returns: boolean success
+-- Returns: nil
 ```
 
 ### Message Processing
@@ -71,9 +69,9 @@ EmoteControl:ApplySubs(template, context)
 -- context: table with token values
 -- Returns: string with substitutions applied
 
-EmoteControl:MakeContext(unit, extra)
+EmoteControl:MakeContext(spellID, extra)
 -- Create a context table for message substitution
--- unit: unit ID or nil
+-- spellID: spell ID or nil
 -- extra: additional context data
 -- Returns: table context
 
@@ -124,7 +122,7 @@ EmoteControl:RandomFrom(table)
 
 EmoteControl:NormalizeChannel(string)
 -- Convert channel alias to standard name
--- Supports: self, say, yell, emote, party, raid, instance
+-- Supports: self, auto, say, yell, emote, party, raid, instance
 -- Returns: string or nil
 
 EmoteControl:ShallowCopy(table)
@@ -278,7 +276,7 @@ local trigger = {
   specID = 71,
   inInstance = true,
   requiresTarget = true,
-  randomChance = 50,  -- 50% chance
+  randomChance = 0.5,  -- 50% chance
   
   -- Pack reference
   packName = "Pack Name",
@@ -403,8 +401,8 @@ EmoteControl.ROTATION_PROTECTION = {
   HIGH = 2
 }
 
-EmoteControl.VERSION = "0.9.5"
-EmoteControl.DB_VERSION = 2
+EmoteControl.VERSION = "0.10.5"
+EmoteControl.DB_VERSION = 5
 ```
 
 ## Event Hooks
@@ -423,11 +421,22 @@ User-facing commands:
 
 ```
 /sl help - Show help
+/sl status - View addon status
+/sl debug - View debug info
 /sl options - Open main options
 /sl packs - Open pack selection
+/sl packs list [filter] - List packs
 /sl editor - Open trigger editor
+/sl builder - Open trigger builder
 /sl stats - Show usage statistics
-/sl defaults - Apply recommended settings
+/sl resetstats - Reset usage statistics
+/sl mood [profile] - Set mood profile
+/sl channel <type> - Set default channel
+/sl cooldown <seconds> - Set global cooldown
+/sl test <triggerId> - Test a trigger
+/sl cooldowns - Show active trigger cooldowns
+/sl quiet [HH-HH|off] - Quiet hours schedule
+/sl packprofile [on|off] - Spec-based pack profiles
 /sl import - Import configuration
 /sl export - Export configuration
 ```
