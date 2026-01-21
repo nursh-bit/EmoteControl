@@ -67,44 +67,18 @@ end)
 -- Event registration helpers to avoid taint in combat
 local function SafeRegisterEvent(eventName)
   if type(InCombatLockdown) == "function" and InCombatLockdown() then
-    addon._pendingEventRegister = addon._pendingEventRegister or {}
-    addon._pendingEventRegister[eventName] = true
-    addon._pendingEventUnregister = addon._pendingEventUnregister or {}
-    addon._pendingEventUnregister[eventName] = nil
     addon._rebuildAfterCombat = true
     return
   end
-  pcall(frame.RegisterEvent, frame, eventName)
+  frame:RegisterEvent(eventName)
 end
 
 local function SafeUnregisterEvent(eventName)
   if type(InCombatLockdown) == "function" and InCombatLockdown() then
-    addon._pendingEventUnregister = addon._pendingEventUnregister or {}
-    addon._pendingEventUnregister[eventName] = true
-    addon._pendingEventRegister = addon._pendingEventRegister or {}
-    addon._pendingEventRegister[eventName] = nil
     addon._rebuildAfterCombat = true
     return
   end
-  pcall(frame.UnregisterEvent, frame, eventName)
-end
-
-local function FlushPendingEventChanges()
-  if type(InCombatLockdown) == "function" and InCombatLockdown() then return end
-  local toUnreg = addon._pendingEventUnregister
-  if type(toUnreg) == "table" then
-    for eventName in pairs(toUnreg) do
-      pcall(frame.UnregisterEvent, frame, eventName)
-    end
-  end
-  local toReg = addon._pendingEventRegister
-  if type(toReg) == "table" then
-    for eventName in pairs(toReg) do
-      pcall(frame.RegisterEvent, frame, eventName)
-    end
-  end
-  addon._pendingEventRegister = nil
-  addon._pendingEventUnregister = nil
+  frame:UnregisterEvent(eventName)
 end
 
 -- SavedVariables (initialized on PLAYER_LOGIN)
@@ -1787,7 +1761,6 @@ end
 function addon:HandleEvent(eventName, ...)
   if eventName == "PLAYER_REGEN_ENABLED" and addon._rebuildAfterCombat then
     addon._rebuildAfterCombat = nil
-    FlushPendingEventChanges()
     addon:RebuildAndRegister()
     return
   end
