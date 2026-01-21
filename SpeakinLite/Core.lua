@@ -59,7 +59,18 @@ taintFrame:RegisterEvent("ADDON_ACTION_BLOCKED")
 taintFrame:RegisterEvent("ADDON_ACTION_FORBIDDEN")
 taintFrame:SetScript("OnEvent", function(_, event, addonName, funcName)
   if addonName == "SpeakinLite" or addonName == ADDON_NAME then
-    print(string.format("|cffff0000%s|r addon=%s func=%s", event, tostring(addonName), tostring(funcName)))
+    local sourceLine
+    if type(debugstack) == "function" then
+      local stack = debugstack(3, 1, 1)
+      if type(stack) == "string" then
+        sourceLine = stack:match("Interface/AddOns/[^%s]+:%d+")
+      end
+    end
+    if sourceLine then
+      print(string.format("|cffff0000%s|r addon=%s func=%s line=%s", event, tostring(addonName), tostring(funcName), sourceLine))
+    else
+      print(string.format("|cffff0000%s|r addon=%s func=%s line=unknown", event, tostring(addonName), tostring(funcName)))
+    end
   end
 end)
 
@@ -78,6 +89,26 @@ local function ScheduleRebuildAfterCombat()
       end
     end
   end)
+end
+
+local function QueueRebuildAndRegister()
+  if C_Timer and C_Timer.After then
+    C_Timer.After(0, function()
+      if InCombatLockdown and InCombatLockdown() then
+        addon._rebuildAfterCombat = true
+        ScheduleRebuildAfterCombat()
+        return
+      end
+      if type(addon.RebuildAndRegister) == "function" then
+        addon:RebuildAndRegister()
+      end
+    end)
+    return
+  end
+
+  if type(addon.RebuildAndRegister) == "function" then
+    addon:RebuildAndRegister()
+  end
 end
 
 local function SafeRegisterEvent(eventName)
@@ -1746,7 +1777,7 @@ function addon:SetPackEnabled(packId, enabled, addonName)
   end
 
   if type(addon.RebuildAndRegister) == "function" then
-    addon:RebuildAndRegister()
+    QueueRebuildAndRegister()
   end
 end
 
