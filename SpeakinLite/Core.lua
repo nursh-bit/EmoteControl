@@ -61,7 +61,12 @@ taintFrame:SetScript("OnEvent", function(_, event, addonName, funcName)
   if addonName == "SpeakinLite" or addonName == ADDON_NAME then
     local sourceLine
     if type(debugstack) == "function" then
-      local stack = debugstack(3, 1, 1)
+      local stack
+      if type(securecallfunction) == "function" then
+        stack = securecallfunction(debugstack, 3, 1, 1)
+      else
+        stack = debugstack(3, 1, 1)
+      end
       if type(stack) == "string" then
         sourceLine = stack:match("Interface/AddOns/[^%s]+:%d+")
       end
@@ -91,6 +96,22 @@ local function ScheduleRebuildAfterCombat()
   end)
 end
 
+local function SecureRegisterEvent(targetFrame, eventName)
+  if type(securecallfunction) == "function" then
+    securecallfunction(targetFrame.RegisterEvent, targetFrame, eventName)
+  else
+    targetFrame:RegisterEvent(eventName)
+  end
+end
+
+local function SecureUnregisterEvent(targetFrame, eventName)
+  if type(securecallfunction) == "function" then
+    securecallfunction(targetFrame.UnregisterEvent, targetFrame, eventName)
+  else
+    targetFrame:UnregisterEvent(eventName)
+  end
+end
+
 local function QueueRebuildAndRegister()
   if C_Timer and C_Timer.After then
     C_Timer.After(0, function()
@@ -117,7 +138,7 @@ local function SafeRegisterEvent(eventName)
     ScheduleRebuildAfterCombat()
     return
   end
-  frame:RegisterEvent(eventName)
+  SecureRegisterEvent(frame, eventName)
 end
 
 local function SafeUnregisterEvent(eventName)
@@ -126,24 +147,24 @@ local function SafeUnregisterEvent(eventName)
     ScheduleRebuildAfterCombat()
     return
   end
-  frame:UnregisterEvent(eventName)
+  SecureUnregisterEvent(frame, eventName)
 end
 
 local function RegisterCoreEvents()
   local function doRegister()
-    frame:RegisterEvent("PLAYER_LOGIN")
-    frame:RegisterEvent("PLAYER_DEAD")
-    frame:RegisterEvent("PLAYER_ALIVE")
-    frame:RegisterEvent("RESURRECT_REQUEST")
-    frame:RegisterEvent("GROUP_JOINED")
-    frame:RegisterEvent("GROUP_LEFT")
-    frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-    frame:RegisterEvent("MAIL_SHOW")
-    frame:RegisterEvent("BANKFRAME_OPENED")
-    frame:RegisterEvent("MERCHANT_SHOW")
-    frame:RegisterEvent("TAXIMAP_OPENED")
-    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    SecureRegisterEvent(frame, "PLAYER_LOGIN")
+    SecureRegisterEvent(frame, "PLAYER_DEAD")
+    SecureRegisterEvent(frame, "PLAYER_ALIVE")
+    SecureRegisterEvent(frame, "RESURRECT_REQUEST")
+    SecureRegisterEvent(frame, "GROUP_JOINED")
+    SecureRegisterEvent(frame, "GROUP_LEFT")
+    SecureRegisterEvent(frame, "ZONE_CHANGED_NEW_AREA")
+    SecureRegisterEvent(frame, "PLAYER_ENTERING_WORLD")
+    SecureRegisterEvent(frame, "MAIL_SHOW")
+    SecureRegisterEvent(frame, "BANKFRAME_OPENED")
+    SecureRegisterEvent(frame, "MERCHANT_SHOW")
+    SecureRegisterEvent(frame, "TAXIMAP_OPENED")
+    SecureRegisterEvent(frame, "COMBAT_LOG_EVENT_UNFILTERED")
   end
 
   if InCombatLockdown and InCombatLockdown() then
@@ -363,17 +384,24 @@ end
 -- Minimap Button
 -- ========================================
 
-local MINIMAP_RADIUS = 80
-local MINIMAP_CENTER_X = 52
-local MINIMAP_CENTER_Y = 52
+local function GetMinimapRadii()
+  if not Minimap then return 80, 80 end
+  local w = Minimap:GetWidth() or 140
+  local h = Minimap:GetHeight() or 140
+  local rx = (w / 2) + 8
+  local ry = (h / 2) + 8
+  return rx, ry
+end
 
 local function UpdateMinimapButtonPosition(btn)
-  if not btn or not db or not db.minimap then return end
+  if not btn or not db or not db.minimap or not Minimap then return end
   local angle = tonumber(db.minimap.angle) or 225
   local rad = math.rad(angle)
-  local x = math.cos(rad) * MINIMAP_RADIUS
-  local y = math.sin(rad) * MINIMAP_RADIUS
-  btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", MINIMAP_CENTER_X - x, y - MINIMAP_CENTER_Y)
+  local rx, ry = GetMinimapRadii()
+  local x = math.cos(rad) * rx
+  local y = math.sin(rad) * ry
+  btn:ClearAllPoints()
+  btn:SetPoint("CENTER", Minimap, "CENTER", x, y)
 end
 
 local function CreateMinimapButton()
@@ -406,11 +434,13 @@ local function CreateMinimapButton()
     if not db then return end
     db.minimap = db.minimap or { hide = false, angle = 225 }
     local x, y = GetCursorPosition()
-    local scale = UIParent:GetScale()
+    local scale = (Minimap and Minimap:GetEffectiveScale()) or UIParent:GetScale()
     x = x / scale
     y = y / scale
     local mx, my = Minimap:GetCenter()
+    if not (mx and my) then return end
     local angle = math.deg(math.atan2(y - my, x - mx))
+    if angle < 0 then angle = angle + 360 end
     db.minimap.angle = angle
     UpdateMinimapButtonPosition(self)
   end)
@@ -445,124 +475,8 @@ local function CreateMinimapButton()
   UpdateMinimapButtonPosition(btn)
 end
 
--- Apply template substitutions (tokens and random selection) to a message
-function addon:ApplySubs(template, ctx)
-  if type(template) ~= "string" then return "" end
-  ctx = ctx or {}
+-- ApplySubs and MakeContext are now in Context.lua
 
-  local out = template
-  local function EscapeSubValue(value)
-    return tostring(value or ""):gsub("%%", "%%%%")
-  end
-
-  -- <pick:a|b|c> - random selection from pipe-separated options
-  out = out:gsub("<pick:([^>]+)>", function(body)
-    local opts = {}
-    for part in string.gmatch(body, "[^|]+") do
-      part = (part:gsub("^%s+", ""):gsub("%s+$", ""))
-      if part ~= "" then table.insert(opts, part) end
-    end
-    return addon:RandomFrom(opts) or ""
-  end)
-
-  -- <rng:1-100> - random number in range
-  out = out:gsub("<rng:(%d+)%-(%d+)>", function(a, b)
-    local lo = tonumber(a) or 0
-    local hi = tonumber(b) or lo
-    if hi < lo then lo, hi = hi, lo end
-    return tostring(math.random(lo, hi))
-  end)
-
-  -- Token substitution map for efficient and maintainable replacement
-  local tokens = {
-    -- Player info tokens
-    player = ctx.player or "",
-    ["player-full"] = ctx["player-full"] or ctx.player or "",
-    spell = ctx.spell or "",
-    target = ctx.target or "",
-    ["target-full"] = ctx["target-full"] or ctx.target or "",
-    zone = ctx.zone or "",
-    subzone = ctx.subzone or "",
-    mapID = ctx.mapID or "",
-    mapid = ctx.mapID or "",
-    continent = ctx.continent or "",
-    spec = ctx.spec or "",
-    specID = ctx.specID or "",
-    specid = ctx.specID or "",
-    role = ctx.role or "",
-    class = ctx.class or "",
-    className = ctx.className or "",
-    ["class-name"] = ctx.className or "",
-    instance = ctx.instanceType or "",
-    ["instance-type"] = ctx.instanceType or "",
-    instanceName = ctx.instanceName or "",
-    ["instance-name"] = ctx.instanceName or "",
-    instanceDifficulty = ctx.instanceDifficulty or "",
-    ["instance-difficulty"] = ctx.instanceDifficulty or "",
-    ["instance-difficulty-id"] = ctx.instanceDifficultyID or "",
-    ["instance-mapid"] = ctx.instanceMapID or "",
-    ["instance-lfgid"] = ctx.instanceLFGID or "",
-    race = ctx.race or "",
-    guild = ctx.guild or "",
-    level = ctx.level or "1",
-    realm = ctx.realm or "",
-    faction = ctx.faction or "",
-    ilvl = ctx.ilvl or "",
-    -- Health and power tokens
-    ["health%%"] = ctx.healthPct or "0",
-    health = ctx.health or "0",
-    healthmax = ctx.healthMax or "0",
-    ["power%%"] = ctx.powerPct or "0",
-    power = ctx.power or "0",
-    powermax = ctx.powerMax or "0",
-    powername = ctx.powerName or "Power",
-    combo = ctx.combo or "0",
-    ["target-health%%"] = ctx.targetHealthPct or "0",
-    ["target-health"] = ctx.targetHealth or "0",
-    ["target-healthmax"] = ctx.targetHealthMax or "0",
-    ["target-class"] = ctx.targetClass or "",
-    ["target-race"] = ctx.targetRace or "",
-    ["target-level"] = ctx.targetLevel or "",
-    ["target-dead"] = ctx.targetDead or "false",
-    ["target-realm"] = ctx.targetRealm or "",
-    -- Loot and achievement tokens
-    achievement = ctx.achievement or "",
-    achievementPoints = ctx.achievementPoints or "",
-    achievementID = ctx.achievementID or "",
-    item = ctx.item or "",
-    itemlink = ctx.itemLink or "",
-    quality = ctx.quality or "",
-    qualityNum = ctx.qualityNum or "",
-    newLevel = ctx.newLevel or "",
-    -- Group and time tokens
-    ["group-size"] = ctx.groupSize or "1",
-    ["party-size"] = ctx.groupSize or "1",
-    ["group-type"] = ctx.groupType or "solo",
-    ["in-instance"] = ctx.inInstance or "false",
-    ["is-raid"] = ctx.isRaid or "false",
-    ["is-party"] = ctx.isParty or "false",
-    affixes = ctx.affixes or "",
-    ["affix-1"] = ctx.affix1 or "",
-    ["affix-2"] = ctx.affix2 or "",
-    ["affix-3"] = ctx.affix3 or "",
-    ["affix-4"] = ctx.affix4 or "",
-    ["keystone-level"] = ctx.keystoneLevel or "",
-    ["keystone-mapid"] = ctx.keystoneMapID or "",
-    time = ctx.time or "",
-    date = ctx.date or "",
-    weekday = ctx.weekday or "",
-  }
-  
-  -- Apply all token substitutions in a single pass
-  out = out:gsub("<([^>]+)>", function(token)
-    if tokens[token] ~= nil then
-      return EscapeSubValue(tokens[token])
-    end
-    return "<" .. token .. ">"
-  end)
-
-  return out
-end
 
 -- Output a message to the specified or default channel with fallback handling
 function addon:Output(msg, channelOverride)
@@ -637,39 +551,8 @@ function addon:Output(msg, channelOverride)
   end
 end
 
-function addon:IsSpellKnownByPlayer(spellID)
-  if type(spellID) ~= "number" then return false end
+-- IsSpellKnownByPlayer is now in Context.lua
 
-  if C_Spell and type(C_Spell.IsSpellKnownOrOverridesKnown) == "function" then
-    local ok, known = pcall(C_Spell.IsSpellKnownOrOverridesKnown, spellID)
-    if ok and known then return true end
-  end
-
-  if C_Spell and type(C_Spell.IsSpellKnown) == "function" then
-    local ok, known = pcall(C_Spell.IsSpellKnown, spellID)
-    if ok and known then return true end
-  end
-
-  local legacyIsSpellKnownOrOverridesKnown = rawget(_G, "IsSpellKnownOrOverridesKnown")
-  if type(legacyIsSpellKnownOrOverridesKnown) == "function" then
-    local ok, known = pcall(legacyIsSpellKnownOrOverridesKnown, spellID)
-    if ok and known then return true end
-  end
-
-  local legacyIsSpellKnown = rawget(_G, "IsSpellKnown")
-  if type(legacyIsSpellKnown) == "function" then
-    local ok, known = pcall(legacyIsSpellKnown, spellID)
-    if ok and known then return true end
-  end
-
-  local legacyIsPlayerSpell = rawget(_G, "IsPlayerSpell")
-  if type(legacyIsPlayerSpell) == "function" then
-    local ok, known = pcall(legacyIsPlayerSpell, spellID)
-    if ok and known then return true end
-  end
-
-  return false
-end
 
 function addon:GetTriggerOverride(triggerId)
   if not db or type(db.triggerOverrides) ~= "table" then return nil end
@@ -993,199 +876,8 @@ function addon:ProcessLootMessage(message, eventName, attempts)
   end
 end
 
-function addon:MakeContext(spellID, extraData)
-  local inInstance, instType = addon:GetInstanceType()
-  local specID, specName = addon:GetSpecInfo()
-  local specIndex = type(GetSpecialization) == "function" and GetSpecialization() or nil
-  local role = (type(GetSpecializationRole) == "function" and specIndex) and GetSpecializationRole(specIndex) or ""
-  
-  -- Health and Power
-  local health = UnitHealth("player") or 0
-  local healthMax = UnitHealthMax("player") or 1
-  local healthPct = math.floor((health / healthMax) * 100)
-  
-  local power = UnitPower("player") or 0
-  local powerMax = UnitPowerMax("player") or 1
-  local powerPct = math.floor((power / powerMax) * 100)
-  
-  local powerType = UnitPowerType("player")
-  local powerName = powerType == 0 and "Mana" or 
-                    powerType == 1 and "Rage" or 
-                    powerType == 2 and "Focus" or 
-                    powerType == 3 and "Energy" or 
-                    powerType == 6 and "Runic Power" or "Power"
-  
-  -- Combo points (for rogues, druids, etc)
-  local combo = 0
-  if type(UnitPower) == "function" then
-    combo = UnitPower("player", 4) or 0 -- POWER_TYPE_COMBO_POINTS = 4
-  end
-  
-  -- Target health
-  local targetHealthPct = 0
-  local targetHealth = 0
-  local targetHealthMax = 1
-  if UnitExists("target") then
-    targetHealth = UnitHealth("target") or 0
-    targetHealthMax = UnitHealthMax("target") or 1
-    targetHealthPct = math.floor((targetHealth / targetHealthMax) * 100)
-  end
-  
-  -- Guild
-  local guildName = GetGuildInfo("player") or ""
-  
-  -- Level
-  local level = UnitLevel("player") or 1
-  
-  -- Race
-  local raceName = UnitRace("player") or ""
-  
-  local name, realm = UnitName("player")
-  local playerFull = name or ""
-  if name and realm and realm ~= "" then
-    playerFull = name .. "-" .. realm
-  end
-  local faction = UnitFactionGroup("player") or ""
-  local className = UnitClass("player")
-  local subzone = GetSubZoneText() or ""
-  local mapID = (C_Map and type(C_Map.GetBestMapForUnit) == "function") and C_Map.GetBestMapForUnit("player") or nil
-  local continent = ""
-  if mapID and C_Map and type(C_Map.GetMapInfo) == "function" then
-    local info = C_Map.GetMapInfo(mapID)
-    if info and info.parentMapID then
-      local parent = C_Map.GetMapInfo(info.parentMapID)
-      continent = parent and parent.name or ""
-    end
-  end
-  local instanceName, _, instanceDifficultyID, instanceDifficultyName, _, _, _, instanceMapID, lfgID = GetInstanceInfo()
-  local equippedIlvl = select(2, GetAverageItemLevel())
+-- MakeContext is now in Context.lua
 
-  local targetName, targetRealm = UnitName("target")
-  local targetFull = targetName or "nobody"
-  if targetName and targetRealm and targetRealm ~= "" then
-    targetFull = targetName .. "-" .. targetRealm
-  end
-  local targetClassName = UnitClass("target")
-  local targetRaceName = UnitRace("target") or ""
-  local targetLevel = UnitLevel("target")
-  local targetDead = UnitIsDeadOrGhost("target") and "true" or "false"
-
-  local groupSize = GetNumGroupMembers() or 1
-  local isRaid = IsInRaid() and "true" or "false"
-  local isParty = (IsInGroup() and not IsInRaid()) and "true" or "false"
-  local groupType = "solo"
-  if isRaid == "true" then
-    groupType = "raid"
-  elseif isParty == "true" then
-    groupType = "party"
-  end
-
-  local inInstanceStr = inInstance and "true" or "false"
-
-  local affixNames = {}
-  if C_MythicPlus and type(C_MythicPlus.GetCurrentAffixes) == "function" then
-    local ok, affixes = pcall(C_MythicPlus.GetCurrentAffixes)
-    if ok and type(affixes) == "table" then
-      for _, affix in ipairs(affixes) do
-        local affixName = (type(affix) == "table") and affix["name"] or nil
-        if type(affixName) == "string" and affixName ~= "" then
-          table.insert(affixNames, affixName)
-        end
-      end
-    end
-  end
-  local affixes = table.concat(affixNames, ", ")
-  local affix1 = affixNames[1] or ""
-  local affix2 = affixNames[2] or ""
-  local affix3 = affixNames[3] or ""
-  local affix4 = affixNames[4] or ""
-
-  local keystoneMapID = ""
-  local keystoneLevel = ""
-  if C_ChallengeMode and type(C_ChallengeMode.GetActiveKeystoneInfo) == "function" then
-    local ok, mapID, level = pcall(C_ChallengeMode.GetActiveKeystoneInfo)
-    if ok and mapID then
-      keystoneMapID = tostring(mapID or "")
-      keystoneLevel = tostring(level or "")
-    end
-  end
-  if keystoneMapID == "" and C_MythicPlus and type(C_MythicPlus.GetOwnedKeystoneInfo) == "function" then
-    local ok, mapID, level = pcall(C_MythicPlus.GetOwnedKeystoneInfo)
-    if ok and mapID then
-      keystoneMapID = tostring(mapID or "")
-      keystoneLevel = tostring(level or "")
-    end
-  end
-
-  local ctx = {
-    player = name or "",
-    ["player-full"] = playerFull or (name or ""),
-    target = targetName or "nobody",
-    ["target-full"] = targetFull or (targetName or "nobody"),
-    zone = addon:GetZone(),
-    subzone = subzone,
-    mapID = mapID or "",
-    continent = continent,
-    class = addon:GetPlayerClass(),
-    className = className or "",
-    spec = specName,
-    specID = specID or "",
-    role = role or "",
-    instanceType = instType or "",
-    instanceName = instanceName or "",
-    instanceDifficulty = instanceDifficultyName or tostring(instanceDifficultyID or ""),
-    instanceDifficultyID = tostring(instanceDifficultyID or ""),
-    instanceMapID = tostring(instanceMapID or ""),
-    instanceLFGID = tostring(lfgID or ""),
-    inInstance = inInstanceStr,
-    groupType = groupType,
-    affixes = affixes,
-    affix1 = affix1,
-    affix2 = affix2,
-    affix3 = affix3,
-    affix4 = affix4,
-    keystoneMapID = keystoneMapID,
-    keystoneLevel = keystoneLevel,
-    spell = spellID and (addon:GetSpellName(spellID) or tostring(spellID)) or "",
-    health = tostring(health),
-    healthMax = tostring(healthMax),
-    healthPct = tostring(healthPct),
-    power = tostring(power),
-    powerMax = tostring(powerMax),
-    powerPct = tostring(powerPct),
-    powerName = powerName,
-    combo = tostring(combo),
-    targetHealthPct = tostring(targetHealthPct),
-    targetHealth = tostring(targetHealth),
-    targetHealthMax = tostring(targetHealthMax),
-    targetClass = targetClassName or "",
-    targetRace = targetRaceName,
-    targetLevel = tostring(targetLevel or ""),
-    targetDead = targetDead,
-    targetRealm = targetRealm or "",
-    guild = guildName,
-    level = tostring(level),
-    race = raceName,
-    realm = realm or GetRealmName() or "",
-    faction = faction,
-    groupSize = tostring(groupSize),
-    isRaid = isRaid,
-    isParty = isParty,
-    ilvl = tostring(equippedIlvl or ""),
-    time = date and date("%H:%M") or "",
-    date = date and date("%Y-%m-%d") or "",
-    weekday = date and date("%A") or "",
-  }
-  
-  -- Merge any extra contextual data (for achievements, loot, etc)
-  if type(extraData) == "table" then
-    for k, v in pairs(extraData) do
-      ctx[k] = v
-    end
-  end
-  
-  return ctx
-end
 
 function addon:FireTrigger(trig, ctx)
   local messages = addon:GetTriggerMessages(trig)
@@ -2024,11 +1716,34 @@ function addon:HandleEvent(eventName, ...)
 
     -- Populate only the indices we actually use from CombatLogGetCurrentEventInfo
     local _
-    _, eventInfo[2], _, eventInfo[4], _, _, _, _, eventInfo[9],
-      eventInfo[10], eventInfo[11], eventInfo[12], eventInfo[13],
-      eventInfo[14], eventInfo[15], eventInfo[16], eventInfo[17],
-      eventInfo[18], eventInfo[19], eventInfo[20], eventInfo[21] = CombatLogGetCurrentEventInfo()
+    local params = {CombatLogGetCurrentEventInfo()}
+    eventInfo[2] = params[2]    -- subevent
+    eventInfo[4] = params[4]    -- sourceGUID
+    eventInfo[9] = params[9]    -- destName
+    
+    -- Spell/Damage params differ by subevent, extract carefully
+    if params[2] == "SWING_DAMAGE" then
+        eventInfo[12] = params[12]
+        eventInfo[18] = params[18]
+    elseif params[2] == "SPELL_DAMAGE" or params[2] == "SPELL_PERIODIC_DAMAGE" or params[2] == "RANGE_DAMAGE" then
+        eventInfo[12] = params[12] -- spellID
+        eventInfo[13] = params[13] -- spellName
+        eventInfo[15] = params[15] -- amount
+        eventInfo[21] = params[21] -- critical
+    elseif params[2] == "SWING_MISSED" then
+        eventInfo[12] = params[12] -- missType
+    elseif params[2] == "SPELL_MISSED" or params[2] == "RANGE_MISSED" then
+        eventInfo[12] = params[12] -- spellID
+        eventInfo[13] = params[13] -- spellName
+        eventInfo[15] = params[15] -- missType
+    elseif params[2] == "SPELL_INTERRUPT" then
+        eventInfo[12] = params[12]
+        eventInfo[13] = params[13]
+        eventInfo[16] = params[16] -- extraSpellName
+    end
+
     local subevent = eventInfo[2]
+
     local sourceGUID = eventInfo[4]
     local destName = eventInfo[9]
 
@@ -2581,4 +2296,8 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
 end)
 
 -- Register core events
-RegisterCoreEvents()
+if type(securecallfunction) == "function" then
+  securecallfunction(RegisterCoreEvents)
+else
+  RegisterCoreEvents()
+end
