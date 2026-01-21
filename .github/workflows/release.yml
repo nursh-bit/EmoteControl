@@ -1,0 +1,22 @@
+name: Release (CurseForge)
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Package and publish
+        uses: BigWigsMods/packager@v2
+        with:
+          cf-api-key: ${{ secrets.CF_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}

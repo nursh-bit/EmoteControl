@@ -1,0 +1,8 @@
+package-as: EmoteControl
+
+ignore:
+  - .git/**
+  - .github/**
+  - scripts/**
+  - .vscode/**
+  - '*.md'
