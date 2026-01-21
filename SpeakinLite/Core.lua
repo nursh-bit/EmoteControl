@@ -84,6 +84,39 @@ local function SafeUnregisterEvent(eventName)
   frame:UnregisterEvent(eventName)
 end
 
+local function RegisterCoreEvents()
+  local function doRegister()
+    frame:RegisterEvent("PLAYER_LOGIN")
+    frame:RegisterEvent("PLAYER_DEAD")
+    frame:RegisterEvent("PLAYER_ALIVE")
+    frame:RegisterEvent("RESURRECT_REQUEST")
+    frame:RegisterEvent("GROUP_JOINED")
+    frame:RegisterEvent("GROUP_LEFT")
+    frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+    frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    frame:RegisterEvent("MAIL_SHOW")
+    frame:RegisterEvent("BANKFRAME_OPENED")
+    frame:RegisterEvent("MERCHANT_SHOW")
+    frame:RegisterEvent("TAXIMAP_OPENED")
+    frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+  end
+
+  if InCombatLockdown and InCombatLockdown() then
+    if addon._coreRegisterTicker == nil and C_Timer and C_Timer.NewTicker then
+      addon._coreRegisterTicker = C_Timer.NewTicker(1, function()
+        if not InCombatLockdown() then
+          addon._coreRegisterTicker:Cancel()
+          addon._coreRegisterTicker = nil
+          doRegister()
+        end
+      end)
+    end
+    return
+  end
+
+  doRegister()
+end
+
 -- SavedVariables (initialized on PLAYER_LOGIN)
 local db
 addon.db = nil
@@ -2504,17 +2537,5 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
   addon:HandleEvent(eventName, ...)
 end)
 
--- Register core events (direct calls at load time - never in combat during addon load)
-frame:RegisterEvent("PLAYER_LOGIN")
-frame:RegisterEvent("PLAYER_DEAD")
-frame:RegisterEvent("PLAYER_ALIVE")
-frame:RegisterEvent("RESURRECT_REQUEST")
-frame:RegisterEvent("GROUP_JOINED")
-frame:RegisterEvent("GROUP_LEFT")
-frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("MAIL_SHOW")
-frame:RegisterEvent("BANKFRAME_OPENED")
-frame:RegisterEvent("MERCHANT_SHOW")
-frame:RegisterEvent("TAXIMAP_OPENED")
-frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+-- Register core events
+RegisterCoreEvents()
