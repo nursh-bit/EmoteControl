@@ -150,19 +150,8 @@ end
 
 local function RegisterCoreEvents()
   local function doRegister()
+    -- Register only PLAYER_LOGIN early; all other events are registered after DB/init
     SecureRegisterEvent(frame, "PLAYER_LOGIN")
-    SecureRegisterEvent(frame, "PLAYER_DEAD")
-    SecureRegisterEvent(frame, "PLAYER_ALIVE")
-    SecureRegisterEvent(frame, "RESURRECT_REQUEST")
-    SecureRegisterEvent(frame, "GROUP_JOINED")
-    SecureRegisterEvent(frame, "GROUP_LEFT")
-    SecureRegisterEvent(frame, "ZONE_CHANGED_NEW_AREA")
-    SecureRegisterEvent(frame, "PLAYER_ENTERING_WORLD")
-    SecureRegisterEvent(frame, "MAIL_SHOW")
-    SecureRegisterEvent(frame, "BANKFRAME_OPENED")
-    SecureRegisterEvent(frame, "MERCHANT_SHOW")
-    SecureRegisterEvent(frame, "TAXIMAP_OPENED")
-    SecureRegisterEvent(frame, "COMBAT_LOG_EVENT_UNFILTERED")
   end
 
   if InCombatLockdown and InCombatLockdown() then
