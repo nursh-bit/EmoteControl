@@ -5,6 +5,6 @@
 ## Version: 0.8.0
 ## LoadOnDemand: 1
 ## Dependencies: SpeakinLite
-## X-SpeakinLite-Class: WARLOCK
+## X-EmoteControl-Class: WARLOCK
 
 Pack.lua

@@ -348,6 +348,14 @@ function addon:ImportTrigger(importString)
   if data.type ~= "trigger" then
     return false, "Invalid data type: " .. tostring(data.type)
   end
+
+  if type(data.id) ~= "string" or data.id == "" then
+    return false, "Invalid trigger id"
+  end
+
+  if type(data.data) ~= "table" then
+    return false, "Invalid trigger data"
+  end
   
   local db = addon:GetDB()
   if not db then
@@ -410,6 +418,10 @@ function addon:ImportAllTriggers(importString, merge)
   if data.type ~= "triggers" then
     return false, "Invalid data type: " .. tostring(data.type)
   end
+
+  if type(data.data) ~= "table" then
+    return false, "Invalid trigger data"
+  end
   
   local db = addon:GetDB()
   if not db then
@@ -424,15 +436,20 @@ function addon:ImportAllTriggers(importString, merge)
   if merge then
     -- Merge mode: only add new triggers
     for id, override in pairs(data.data) do
-      if not db.triggerOverrides[id] then
+      if not db.triggerOverrides[id] and type(override) == "table" then
         db.triggerOverrides[id] = override
         count = count + 1
       end
     end
   else
     -- Replace mode: overwrite all
-    db.triggerOverrides = data.data
-    for _ in pairs(data.data) do count = count + 1 end
+    db.triggerOverrides = {}
+    for id, override in pairs(data.data) do
+      if type(override) == "table" then
+        db.triggerOverrides[id] = override
+        count = count + 1
+      end
+    end
   end
   
   return true, "Imported " .. count .. " trigger(s)"

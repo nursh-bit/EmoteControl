@@ -31,6 +31,9 @@ local EVENT_ALIAS = {
 }
 
 function addon:IsPackEnabled(packId)
+  if type(addon.GetPackEnabled) == "function" then
+    return addon:GetPackEnabled(packId)
+  end
   if type(packId) ~= "string" or packId == "" then return true end
   local theDb = rawget(_G, "EmoteControlDB") or rawget(_G, "SpeakinLiteDB")
   if type(theDb) ~= "table" then return true end
@@ -57,6 +60,9 @@ function addon:RegisterPack(pack)
     end
   end
   if type(pack.triggers) ~= "table" then pack.triggers = {} end
+  if pack.version == nil then
+    pack.version = addon.VERSION
+  end
   addon.Packs[pack.id] = pack
 end
 
@@ -78,8 +84,9 @@ function addon:ResolveSpellID(spellIdentifier)
     if ok and type(resolvedId) == "number" then id = resolvedId end
   end
   
-  if not id and type(GetSpellInfo) == "function" then
-    local ok, a, b, c, d, e, f, spellID = pcall(GetSpellInfo, spellIdentifier)
+  local legacyGetSpellInfo = rawget(_G, "GetSpellInfo")
+  if not id and type(legacyGetSpellInfo) == "function" then
+    local ok, a, b, c, d, e, f, spellID = pcall(legacyGetSpellInfo, spellIdentifier)
     if ok and type(spellID) == "number" then 
       id = spellID
     elseif ok and type(f) == "number" then 
@@ -113,8 +120,9 @@ function addon:GetSpellName(spellID)
     end
   end
   
-  if not name and type(GetSpellInfo) == "function" then
-    local ok, resolvedName = pcall(GetSpellInfo, spellID)
+  local legacyGetSpellInfo = rawget(_G, "GetSpellInfo")
+  if not name and type(legacyGetSpellInfo) == "function" then
+    local ok, resolvedName = pcall(legacyGetSpellInfo, spellID)
     if ok and type(resolvedName) == "string" then
       name = resolvedName
     end

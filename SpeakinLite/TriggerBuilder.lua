@@ -30,7 +30,7 @@ function addon:CreateTriggerBuilder()
   end
 
   local frame = CreateFrame("Frame", "EmoteControlTriggerBuilder", UIParent, "BasicFrameTemplateWithInset")
-  frame:SetSize(600, 500)
+  frame:SetSize(600, 560)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)
@@ -113,7 +113,7 @@ function addon:CreateTriggerBuilder()
   local channelDropdown = CreateFrame("Frame", "SLBuilderChannelDropdown", frame, "UIDropDownMenuTemplate")
   channelDropdown:SetPoint("TOPLEFT", channelLabel, "TOPRIGHT", -15, 7)
   
-  local channelOptions = {"SAY", "YELL", "EMOTE", "PARTY", "RAID", "INSTANCE", "SELF"}
+  local channelOptions = {"SAY", "YELL", "EMOTE", "PARTY", "RAID", "INSTANCE", "SELF", "AUTO"}
   
   UIDropDownMenu_SetWidth(channelDropdown, 120)
   UIDropDownMenu_SetText(channelDropdown, "SAY")
@@ -192,8 +192,142 @@ function addon:CreateTriggerBuilder()
 
   yOffset = yOffset - 50
 
+  -- Conditions
+  local condLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  condLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  condLabel:SetText("Conditions")
+
+  yOffset = yOffset - 30
+
+  local chanceLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  chanceLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  chanceLabel:SetText("Random chance (%)")
+
+  local chanceBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+  chanceBox:SetSize(60, 24)
+  chanceBox:SetPoint("TOPLEFT", chanceLabel, "TOPRIGHT", 10, 4)
+  chanceBox:SetAutoFocus(false)
+  chanceBox:SetNumeric(true)
+  chanceBox:SetScript("OnTextChanged", function(self)
+    if currentTrigger then
+      local v = tonumber(self:GetText())
+      if v and v > 0 then
+        currentTrigger.conditions.randomChance = addon:ClampNumber(v, 1, 100) / 100
+      else
+        currentTrigger.conditions.randomChance = nil
+      end
+    end
+  end)
+
+  yOffset = yOffset - 30
+
+  local cbInCombat = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+  cbInCombat:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  cbInCombat.Text:SetText("In combat")
+  cbInCombat:SetScript("OnClick", function(self)
+    if currentTrigger then
+      currentTrigger.conditions.inCombat = self:GetChecked() and true or nil
+    end
+  end)
+
+  yOffset = yOffset - 26
+
+  local cbInGroup = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+  cbInGroup:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  cbInGroup.Text:SetText("In group or raid")
+  cbInGroup:SetScript("OnClick", function(self)
+    if currentTrigger then
+      currentTrigger.conditions.inGroup = self:GetChecked() and true or nil
+    end
+  end)
+
+  yOffset = yOffset - 26
+
+  local hbLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  hbLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  hbLabel:SetText("Health below (%)")
+
+  local hbBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+  hbBox:SetSize(60, 24)
+  hbBox:SetPoint("TOPLEFT", hbLabel, "TOPRIGHT", 10, 4)
+  hbBox:SetAutoFocus(false)
+  hbBox:SetNumeric(true)
+  hbBox:SetScript("OnTextChanged", function(self)
+    if currentTrigger then
+      local v = tonumber(self:GetText())
+      if v and v > 0 then
+        currentTrigger.conditions.healthBelow = addon:ClampNumber(v, 1, 100)
+      else
+        currentTrigger.conditions.healthBelow = nil
+      end
+    end
+  end)
+
+  yOffset = yOffset - 30
+
+  local haLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  haLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  haLabel:SetText("Health above (%)")
+
+  local haBox = CreateFrame("EditBox", nil, frame, "InputBoxTemplate")
+  haBox:SetSize(60, 24)
+  haBox:SetPoint("TOPLEFT", haLabel, "TOPRIGHT", 10, 4)
+  haBox:SetAutoFocus(false)
+  haBox:SetNumeric(true)
+  haBox:SetScript("OnTextChanged", function(self)
+    if currentTrigger then
+      local v = tonumber(self:GetText())
+      if v and v > 0 then
+        currentTrigger.conditions.healthAbove = addon:ClampNumber(v, 1, 100)
+      else
+        currentTrigger.conditions.healthAbove = nil
+      end
+    end
+  end)
+
+  yOffset = yOffset - 30
+
+  local cbTarget = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
+  cbTarget:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  cbTarget.Text:SetText("Requires target")
+  cbTarget:SetScript("OnClick", function(self)
+    if currentTrigger then
+      currentTrigger.conditions.requiresTarget = self:GetChecked() and true or nil
+    end
+  end)
+
+  local targetTypeDropdown = CreateFrame("Frame", "SLBuilderTargetTypeDropdown", frame, "UIDropDownMenuTemplate")
+  targetTypeDropdown:SetPoint("TOPLEFT", cbTarget, "TOPRIGHT", -10, 2)
+  UIDropDownMenu_SetWidth(targetTypeDropdown, 110)
+  UIDropDownMenu_SetText(targetTypeDropdown, "Target type")
+  UIDropDownMenu_Initialize(targetTypeDropdown, function(self, level)
+    local options = {
+      { label = "Any", value = "" },
+      { label = "Enemy", value = "enemy" },
+      { label = "Friendly", value = "friendly" },
+    }
+    for _, opt in ipairs(options) do
+      local info = UIDropDownMenu_CreateInfo()
+      info.text = opt.label
+      info.value = opt.value
+      info.func = function()
+        if currentTrigger then
+          if opt.value == "" then
+            currentTrigger.conditions.targetType = nil
+          else
+            currentTrigger.conditions.targetType = opt.value
+          end
+          UIDropDownMenu_SetText(targetTypeDropdown, opt.label)
+        end
+      end
+      UIDropDownMenu_AddButton(info)
+    end
+  end)
+
+  yOffset = yOffset - 50
+
   -- Buttons
-  local saveBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+  local saveBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   saveBtn:SetSize(120, 30)
   saveBtn:SetPoint("BOTTOMLEFT", frame, "BOTTOMLEFT", 20, 15)
   saveBtn:SetText("Save Trigger")
@@ -204,7 +338,7 @@ function addon:CreateTriggerBuilder()
     end
   end)
 
-  local newBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+  local newBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   newBtn:SetSize(120, 30)
   newBtn:SetPoint("BOTTOM", frame, "BOTTOM", 0, 15)
   newBtn:SetText("New Trigger")
@@ -218,7 +352,7 @@ function addon:CreateTriggerBuilder()
     addon:Print("New trigger created.")
   end)
 
-  local closeBtn = CreateFrame("Button", nil, frame, "GameMenuButtonTemplate")
+  local closeBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
   closeBtn:SetSize(120, 30)
   closeBtn:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -20, 15)
   closeBtn:SetText("Close")
@@ -280,5 +414,7 @@ function addon:OpenTriggerBuilder()
   if not builderFrame then
     addon:CreateTriggerBuilder()
   end
-  builderFrame:Show()
+  if builderFrame and type(builderFrame.Show) == "function" then
+    builderFrame:Show()
+  end
 end
