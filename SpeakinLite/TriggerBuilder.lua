@@ -141,17 +141,29 @@ function addon:CreateTriggerBuilder()
 
   yOffset = yOffset - 25
 
-  local msgScrollFrame = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-  msgScrollFrame:SetSize(540, 150)
-  msgScrollFrame:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+  local msgBox = CreateFrame("Frame", nil, frame, "InsetFrameTemplate3")
+  msgBox:SetSize(540, 150)
+  msgBox:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
+
+  local msgScrollFrame = CreateFrame("ScrollFrame", nil, msgBox, "UIPanelScrollFrameTemplate")
+  msgScrollFrame:SetPoint("TOPLEFT", 6, -6)
+  msgScrollFrame:SetPoint("BOTTOMRIGHT", -26, 6)
 
   local msgEditBox = CreateFrame("EditBox", nil, msgScrollFrame)
-  msgEditBox:SetSize(520, 150)
+  msgEditBox:SetSize(1, 1)
   msgEditBox:SetMultiLine(true)
   msgEditBox:SetAutoFocus(false)
   msgEditBox:SetFontObject("ChatFontNormal")
+  msgEditBox:EnableMouse(true)
+  msgEditBox:SetTextInsets(6, 6, 6, 6)
+  msgEditBox:SetScript("OnMouseDown", function(self)
+    self:SetFocus()
+  end)
   msgEditBox:SetScript("OnEscapePressed", function(self)
     self:ClearFocus()
+  end)
+  msgEditBox:SetScript("OnCursorChanged", function(self)
+    msgScrollFrame:UpdateScrollChildRect()
   end)
   msgEditBox:SetScript("OnTextChanged", function(self)
     if currentTrigger then
@@ -164,6 +176,7 @@ function addon:CreateTriggerBuilder()
       end
       currentTrigger.messages = messages
     end
+    msgScrollFrame:UpdateScrollChildRect()
   end)
 
   msgScrollFrame:SetScrollChild(msgEditBox)
