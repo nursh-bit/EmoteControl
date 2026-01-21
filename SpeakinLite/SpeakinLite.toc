@@ -10,6 +10,7 @@
 Utils.lua
 Registry.lua
 LibEmoteControl.lua
+Context.lua
 Core.lua
 ImportExport.lua
 TriggerBuilder.lua
