@@ -1,5 +1,15 @@
 # Emote Control Changelog
 
+## Version 0.10.15 - WoW 12.0+ Taint Mitigations
+
+### Fixes & Improvements
+- Added lazy context resolver module and removed duplicated core logic.
+- Hardened all WoW API calls with defensive wrappers for 12.0+ safety.
+- Optimized combat log parsing to avoid per-event table allocations.
+- Added taint mitigations for event registration and dropdown initialization.
+- Deferred slash command registration and added a disable flag for taint suppression.
+- Restored pack auto-loading while respecting combat lockdown.
+
 ## Version 0.10.5 - QoL & Customization Update
 
 ### New Features
