@@ -75,11 +75,13 @@ end
 
 -- Player info utilities with fallback and safety checks
 function addon:GetPlayerClass()
+  if not UnitClass then return "" end
   local _, classFile = UnitClass("player")
   return classFile or ""
 end
 
 function addon:GetPlayerRaceFile()
+  if not UnitRace then return "" end
   local _, raceFile = UnitRace("player")
   return raceFile or ""
 end
@@ -96,11 +98,15 @@ function addon:GetSpecInfo()
 end
 
 function addon:GetZone()
-  return GetZoneText() or ""
+  if GetZoneText then
+    return GetZoneText() or ""
+  end
+  return ""
 end
 
 -- Determine instance type with clear return values
 function addon:GetInstanceType()
+  if not IsInInstance then return false, "" end
   local inInst, instType = IsInInstance()
   return inInst, (instType or "")
 end

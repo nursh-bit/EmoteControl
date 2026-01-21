@@ -368,7 +368,7 @@ function addon:IsQuietHours()
   local endHour = tonumber(db.quietHoursEnd)
   if startHour == nil or endHour == nil then return false end
 
-  local nowHour = tonumber(date and date("%H")) or 0
+  local nowHour = (date and tonumber(date("%H"))) or 0
 
   if startHour == endHour then
     return true
@@ -488,11 +488,11 @@ function addon:Output(msg, channelOverride)
   channel = string.upper(channel)
 
   if channel == "AUTO" then
-    if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
+    if IsInGroup and IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
       channel = "INSTANCE"
-    elseif IsInRaid() then
+    elseif IsInRaid and IsInRaid() then
       channel = "RAID"
-    elseif IsInGroup(LE_PARTY_CATEGORY_HOME) then
+    elseif IsInGroup and IsInGroup(LE_PARTY_CATEGORY_HOME) then
       channel = "PARTY"
     else
       channel = "SELF"
@@ -506,24 +506,24 @@ function addon:Output(msg, channelOverride)
   end
 
   -- Validate and handle group channels with intelligent fallback
-  local inInstance = IsInInstance()
+  local inInstance = IsInInstance and IsInInstance() or false
   
   -- Fallback from restricted channels
   if not inInstance and IsOutdoorRestrictedChat(channel) and (not db or db.fallbackToSelf ~= false) then
     channel = "EMOTE"
   elseif channel == "PARTY" then
-    if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
+    if not (IsInGroup and IsInGroup(LE_PARTY_CATEGORY_HOME)) then
       addon:Print(msg)
       return
     end
   elseif channel == "RAID" then
-    if not IsInRaid() then
+    if not (IsInRaid and IsInRaid()) then
       addon:Print(msg)
       return
     end
   elseif channel == "INSTANCE" then
-    if not IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
-      if IsInGroup(LE_PARTY_CATEGORY_HOME) then
+    if not (IsInGroup and IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) then
+      if IsInGroup and IsInGroup(LE_PARTY_CATEGORY_HOME) then
         channel = "PARTY"
       else
         addon:Print(msg)
@@ -887,9 +887,9 @@ function addon:FireTrigger(trig, ctx)
   local messageList = messages
   if messages.solo or messages.party or messages.raid or messages.instance then
     -- Conditional messages based on group state
-    local inRaid = IsInRaid()
-    local inParty = IsInGroup()
-    local inInstance = IsInInstance()
+    local inRaid = IsInRaid and IsInRaid() or false
+    local inParty = IsInGroup and IsInGroup() or false
+    local inInstance = IsInInstance and IsInInstance() or false
     
     if inRaid and messages.raid then
       messageList = messages.raid
@@ -976,7 +976,7 @@ function addon:MatchesTrigger(trig, eventName, args)
 
   -- Instance gating
   if type(cond.inInstance) == "boolean" then
-    local inInstance = IsInInstance()
+    local inInstance = IsInInstance and IsInInstance() or false
     if inInstance ~= cond.inInstance then
       return false
     end
@@ -999,13 +999,13 @@ function addon:MatchesTrigger(trig, eventName, args)
 
   -- Target gating
   if cond.requiresTarget == true then
-    if not UnitExists("target") then return false end
+    if not (UnitExists and UnitExists("target")) then return false end
   end
   if type(cond.targetType) == "string" then
-    if not UnitExists("target") then return false end
+    if not (UnitExists and UnitExists("target")) then return false end
     local tt = string.lower(cond.targetType)
-    if tt == "enemy" and UnitIsFriend("player", "target") then return false end
-    if tt == "friendly" and not UnitIsFriend("player", "target") then return false end
+    if tt == "enemy" and (UnitIsFriend and UnitIsFriend("player", "target")) then return false end
+    if tt == "friendly" and not (UnitIsFriend and UnitIsFriend("player", "target")) then return false end
   end
 
   -- Spell gating
@@ -1082,7 +1082,7 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- In combat check
   if type(cond.inCombat) == "boolean" then
-    local inCombat = UnitAffectingCombat("player")
+    local inCombat = UnitAffectingCombat and UnitAffectingCombat("player") or false
     if inCombat ~= cond.inCombat then
       return false
     end
@@ -1090,7 +1090,7 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- In group check
   if type(cond.inGroup) == "boolean" then
-    local inGroup = IsInGroup() or IsInRaid()
+    local inGroup = (IsInGroup and IsInGroup()) or (IsInRaid and IsInRaid()) or false
     if inGroup ~= cond.inGroup then
       return false
     end
@@ -1098,11 +1098,11 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Group size check
   if type(cond.groupSize) == "table" then
-    local size = GetNumGroupMembers() or 0
-    if IsInRaid() then
-      size = GetNumGroupMembers()
-    elseif IsInGroup() then
-      size = GetNumGroupMembers()
+    local size = (GetNumGroupMembers and GetNumGroupMembers()) or 0
+    if IsInRaid and IsInRaid() then
+      size = GetNumGroupMembers and GetNumGroupMembers() or 0
+    elseif IsInGroup and IsInGroup() then
+      size = GetNumGroupMembers and GetNumGroupMembers() or 0
     else
       size = 1
     end
@@ -1144,11 +1144,14 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Target is boss check
   if cond.targetIsBoss == true then
-    if not UnitExists("target") then return false end
-    local classification = UnitClassification("target")
+    if not (UnitExists and UnitExists("target")) then return false end
+    local classification = UnitClassification and UnitClassification("target") or ""
     if classification ~= "worldboss" and classification ~= "rareelite" and classification ~= "elite" then
       -- Also check if it's a dungeon/raid boss
-      if not (UnitLevel("target") == -1 or (IsInInstance() and UnitIsEnemy("player", "target"))) then
+      local targetLevel = UnitLevel and UnitLevel("target") or 0
+      local inInstance = IsInInstance and IsInInstance() or false
+      local isEnemy = UnitIsEnemy and UnitIsEnemy("player", "target") or false
+      if not (targetLevel == -1 or (inInstance and isEnemy)) then
         return false
       end
     end
@@ -1158,10 +1161,10 @@ function addon:MatchesTrigger(trig, eventName, args)
   if cond.healthBelow ~= nil or cond.healthAbove ~= nil then
     local below = tonumber(cond.healthBelow)
     local above = tonumber(cond.healthAbove)
-    local healthMax = UnitHealthMax("player") or 0
+    local healthMax = (UnitHealthMax and UnitHealthMax("player")) or 0
     local healthPct = 0
     if healthMax > 0 then
-      healthPct = (UnitHealth("player") / healthMax) * 100
+      healthPct = ((UnitHealth and UnitHealth("player")) or 0) / healthMax * 100
     end
     if below then
       below = addon:ClampNumber(below, 0, 100)
