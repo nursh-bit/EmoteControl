@@ -10,11 +10,48 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.10.4"
-addon.DB_VERSION = 2
+addon.VERSION = "0.10.5"
+addon.DB_VERSION = 5
+
+addon.L = addon.L or {}
+local L = addon.L
+
+local function InitLocale()
+  local defaults = {
+    WELCOME_1 = "Welcome! Use /sl options for quick setup and pack selection.",
+    WELCOME_2 = "Tip: Try SELF channel with 6s cooldown and 8/min for low spam.",
+    HELP_HEADER = "Commands:",
+    HELP_STATUS = "/sl status - View addon status",
+    HELP_STATS = "/sl stats - View usage statistics",
+    HELP_RESETSTATS = "/sl resetstats - Reset usage statistics",
+    HELP_MOOD = "/sl mood [profile] - Change personality (default/serious/humorous/dark/heroic)",
+    HELP_DEBUG = "/sl debug - View debug info",
+    HELP_OPTIONS = "/sl options - Open options panel",
+    HELP_PACKS = "/sl packs [list] - Manage packs or list packs",
+    HELP_EDITOR = "/sl editor - Customize triggers",
+    HELP_BUILDER = "/sl builder - Create custom triggers visually",
+    HELP_IMPORTEXPORT = "/sl import | /sl export - Share configurations",
+    HELP_ONOFF = "/sl on | /sl off - Enable/disable addon",
+    HELP_CHANNEL = "/sl channel <type> - Set default channel",
+    HELP_COOLDOWN = "/sl cooldown <seconds> - Set global cooldown",
+    HELP_TEST = "/sl test <triggerId> - Test a trigger immediately",
+    HELP_COOLDOWNS = "/sl cooldowns - Show active trigger cooldowns",
+    HELP_QUIET = "/sl quiet [HH-HH|off] - Quiet hours schedule",
+    HELP_PACKPROFILE = "/sl packprofile [on|off] - Spec-based pack profiles",
+    LOADED = "Emote Control loaded. /sl help",
+    AUTO_ENABLED = "Welcome! Auto-enabled your class, race, and daily activities packs.",
+  }
+
+  for k, v in pairs(defaults) do
+    if L[k] == nil then
+      L[k] = v
+    end
+  end
+end
 
 -- Create event frame for listener registration
 local frame = CreateFrame("Frame")
+local loadStart = GetTime()
 
 -- SavedVariables (initialized on PLAYER_LOGIN)
 local db
@@ -42,6 +79,12 @@ function addon:ApplyRecommendedDefaults(db)
     globalCooldown = 6,
     rotationProtection = "MEDIUM",
     maxPerMinute = 8,
+    adaptiveCooldowns = false,
+    adaptiveCooldownMax = 2,
+    packProfilesEnabled = false,
+    quietHoursEnabled = false,
+    quietHoursStart = 23,
+    quietHoursEnd = 7,
     repairThreshold = 0.2,
     enableSpellTriggers = true,
     enableNonSpellTriggers = true,
@@ -74,12 +117,30 @@ function addon:ApplyMigrations(db)
     v = 2
   end
 
+  if v < 3 then
+    SetDefault(db, "quietHoursEnabled", false)
+    SetDefault(db, "quietHoursStart", 23)
+    SetDefault(db, "quietHoursEnd", 7)
+    v = 3
+  end
+
+  if v < 4 then
+    SetDefault(db, "adaptiveCooldowns", false)
+    SetDefault(db, "adaptiveCooldownMax", 2)
+    v = 4
+  end
+
+  if v < 5 then
+    SetDefault(db, "packProfilesEnabled", false)
+    v = 5
+  end
+
   db.version = v
 end
 
 function addon:ShowOnboarding()
-  addon:Print("Welcome! Use /sl options for quick setup and pack selection.")
-  addon:Print("Tip: Try SELF channel with 6s cooldown and 8/min for low spam.")
+  addon:Print(L.WELCOME_1)
+  addon:Print(L.WELCOME_2)
 
   if type(addon.OpenOptions) == "function" then
     local inCombat = (type(InCombatLockdown) == "function") and InCombatLockdown()
@@ -89,7 +150,15 @@ function addon:ShowOnboarding()
   end
 end
 
-local SendChat = (C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" and C_ChatInfo.SendChatMessage) or SendChatMessage
+local function SendChat(msg, channel, ...)
+  if C_ChatInfo and type(C_ChatInfo.SendChatMessage) == "function" then
+    return C_ChatInfo.SendChatMessage(msg, channel, ...)
+  end
+  local legacySend = rawget(_G, "SendChatMessage")
+  if type(legacySend) == "function" then
+    return legacySend(msg, channel, ...)
+  end
+end
 local CanChatSend = (C_ChatInfo and type(C_ChatInfo.CanChatMessageBeSent) == "function" and C_ChatInfo.CanChatMessageBeSent) or nil
 
 local function IsOutdoorRestrictedChat(chatType)
@@ -137,24 +206,65 @@ local function GlobalRateOk()
   return #addon._sentTimes < maxPerMin
 end
 
-local function NoteGlobalSend()
+local function TryNoteGlobalSend()
+  if not db then return false end
+  local maxPerMin = tonumber(db.maxPerMinute)
+  if not maxPerMin or maxPerMin <= 0 then
+    return true
+  end
+
   local now = GetTime()
   PruneSentTimes(now)
+  if #addon._sentTimes >= maxPerMin then
+    return false
+  end
   table.insert(addon._sentTimes, now)
+  return true
+end
+
+local function GetSendLoad()
+  if not db then return 0 end
+  local maxPerMin = tonumber(db.maxPerMinute)
+  if not maxPerMin or maxPerMin <= 0 then return 0 end
+  local now = GetTime()
+  PruneSentTimes(now)
+  local load = #addon._sentTimes / maxPerMin
+  return addon:ClampNumber(load, 0, 1)
+end
+
+function addon:IsQuietHours()
+  if not db or db.quietHoursEnabled ~= true then return false end
+  local startHour = tonumber(db.quietHoursStart)
+  local endHour = tonumber(db.quietHoursEnd)
+  if startHour == nil or endHour == nil then return false end
+
+  local nowHour = tonumber(date and date("%H")) or 0
+
+  if startHour == endHour then
+    return true
+  end
+
+  if startHour < endHour then
+    return nowHour >= startHour and nowHour < endHour
+  end
+  return nowHour >= startHour or nowHour < endHour
 end
 
 -- ========================================
 -- Minimap Button
 -- ========================================
 
+local MINIMAP_RADIUS = 80
+local MINIMAP_CENTER_X = 52
+local MINIMAP_CENTER_Y = 52
+
 local function UpdateMinimapButtonPosition(btn)
   if not btn or not db or not db.minimap then return end
   local angle = tonumber(db.minimap.angle) or 225
   local rad = math.rad(angle)
-  local radius = 80
-  local x = math.cos(rad) * radius
-  local y = math.sin(rad) * radius
-  btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", 52 - x, y - 52)
+  local x = math.cos(rad) * MINIMAP_RADIUS
+  local y = math.sin(rad) * MINIMAP_RADIUS
+  btn:SetPoint("TOPLEFT", Minimap, "TOPLEFT", MINIMAP_CENTER_X - x, y - MINIMAP_CENTER_Y)
 end
 
 local function CreateMinimapButton()
@@ -258,8 +368,10 @@ function addon:ApplySubs(template, ctx)
   local tokens = {
     -- Player info tokens
     player = ctx.player or "",
+    ["player-full"] = ctx["player-full"] or ctx.player or "",
     spell = ctx.spell or "",
     target = ctx.target or "",
+    ["target-full"] = ctx["target-full"] or ctx.target or "",
     zone = ctx.zone or "",
     subzone = ctx.subzone or "",
     mapID = ctx.mapID or "",
@@ -273,10 +385,14 @@ function addon:ApplySubs(template, ctx)
     className = ctx.className or "",
     ["class-name"] = ctx.className or "",
     instance = ctx.instanceType or "",
+    ["instance-type"] = ctx.instanceType or "",
     instanceName = ctx.instanceName or "",
     ["instance-name"] = ctx.instanceName or "",
     instanceDifficulty = ctx.instanceDifficulty or "",
     ["instance-difficulty"] = ctx.instanceDifficulty or "",
+    ["instance-difficulty-id"] = ctx.instanceDifficultyID or "",
+    ["instance-mapid"] = ctx.instanceMapID or "",
+    ["instance-lfgid"] = ctx.instanceLFGID or "",
     race = ctx.race or "",
     guild = ctx.guild or "",
     level = ctx.level or "1",
@@ -299,24 +415,42 @@ function addon:ApplySubs(template, ctx)
     ["target-race"] = ctx.targetRace or "",
     ["target-level"] = ctx.targetLevel or "",
     ["target-dead"] = ctx.targetDead or "false",
+    ["target-realm"] = ctx.targetRealm or "",
     -- Loot and achievement tokens
     achievement = ctx.achievement or "",
+    achievementPoints = ctx.achievementPoints or "",
+    achievementID = ctx.achievementID or "",
     item = ctx.item or "",
     itemlink = ctx.itemLink or "",
     quality = ctx.quality or "",
+    qualityNum = ctx.qualityNum or "",
+    newLevel = ctx.newLevel or "",
     -- Group and time tokens
     ["group-size"] = ctx.groupSize or "1",
+    ["party-size"] = ctx.groupSize or "1",
+    ["group-type"] = ctx.groupType or "solo",
+    ["in-instance"] = ctx.inInstance or "false",
     ["is-raid"] = ctx.isRaid or "false",
     ["is-party"] = ctx.isParty or "false",
+    affixes = ctx.affixes or "",
+    ["affix-1"] = ctx.affix1 or "",
+    ["affix-2"] = ctx.affix2 or "",
+    ["affix-3"] = ctx.affix3 or "",
+    ["affix-4"] = ctx.affix4 or "",
+    ["keystone-level"] = ctx.keystoneLevel or "",
+    ["keystone-mapid"] = ctx.keystoneMapID or "",
     time = ctx.time or "",
     date = ctx.date or "",
     weekday = ctx.weekday or "",
   }
   
-  -- Apply all token substitutions at once
-  for token, value in pairs(tokens) do
-    out = out:gsub("<" .. token .. ">", EscapeSubValue(value))
-  end
+  -- Apply all token substitutions in a single pass
+  out = out:gsub("<([^>]+)>", function(token)
+    if tokens[token] ~= nil then
+      return EscapeSubValue(tokens[token])
+    end
+    return "<" .. token .. ">"
+  end)
 
   return out
 end
@@ -325,13 +459,26 @@ end
 function addon:Output(msg, channelOverride)
   if not msg or msg == "" then return end
 
+  if not TryNoteGlobalSend() then return end
+
   local channel = channelOverride or (db and db.channel) or "SELF"
   channel = string.upper(channel)
+
+  if channel == "AUTO" then
+    if IsInGroup(LE_PARTY_CATEGORY_INSTANCE) then
+      channel = "INSTANCE"
+    elseif IsInRaid() then
+      channel = "RAID"
+    elseif IsInGroup(LE_PARTY_CATEGORY_HOME) then
+      channel = "PARTY"
+    else
+      channel = "SELF"
+    end
+  end
 
   -- Self output is always safe and doesn't require group checks
   if channel == "SELF" then
     addon:Print(msg)
-    NoteGlobalSend()
     return
   end
 
@@ -344,13 +491,11 @@ function addon:Output(msg, channelOverride)
   elseif channel == "PARTY" then
     if not IsInGroup(LE_PARTY_CATEGORY_HOME) then
       addon:Print(msg)
-      NoteGlobalSend()
       return
     end
   elseif channel == "RAID" then
     if not IsInRaid() then
       addon:Print(msg)
-      NoteGlobalSend()
       return
     end
   elseif channel == "INSTANCE" then
@@ -359,7 +504,6 @@ function addon:Output(msg, channelOverride)
         channel = "PARTY"
       else
         addon:Print(msg)
-        NoteGlobalSend()
         return
       end
     else
@@ -372,29 +516,46 @@ function addon:Output(msg, channelOverride)
     local ok, canSend = pcall(CanChatSend, channel, msg)
     if ok and canSend == false then
       addon:Print(msg)
-      NoteGlobalSend()
       return
     end
   end
 
   -- Attempt to send the message with fallback
-  local ok = pcall(SendChat, msg, channel)
+  local ok, err = pcall(SendChat, msg, channel)
   if not ok then
+    addon:Print("Chat failed: " .. tostring(err) .. ", sending to SELF.")
     addon:Print(msg)
   end
-  NoteGlobalSend()
 end
 
 function addon:IsSpellKnownByPlayer(spellID)
   if type(spellID) ~= "number" then return false end
 
-  if type(IsSpellKnown) == "function" then
-    local ok, known = pcall(IsSpellKnown, spellID)
+  if C_Spell and type(C_Spell.IsSpellKnownOrOverridesKnown) == "function" then
+    local ok, known = pcall(C_Spell.IsSpellKnownOrOverridesKnown, spellID)
     if ok and known then return true end
   end
 
-  if type(IsPlayerSpell) == "function" then
-    local ok, known = pcall(IsPlayerSpell, spellID)
+  if C_Spell and type(C_Spell.IsSpellKnown) == "function" then
+    local ok, known = pcall(C_Spell.IsSpellKnown, spellID)
+    if ok and known then return true end
+  end
+
+  local legacyIsSpellKnownOrOverridesKnown = rawget(_G, "IsSpellKnownOrOverridesKnown")
+  if type(legacyIsSpellKnownOrOverridesKnown) == "function" then
+    local ok, known = pcall(legacyIsSpellKnownOrOverridesKnown, spellID)
+    if ok and known then return true end
+  end
+
+  local legacyIsSpellKnown = rawget(_G, "IsSpellKnown")
+  if type(legacyIsSpellKnown) == "function" then
+    local ok, known = pcall(legacyIsSpellKnown, spellID)
+    if ok and known then return true end
+  end
+
+  local legacyIsPlayerSpell = rawget(_G, "IsPlayerSpell")
+  if type(legacyIsPlayerSpell) == "function" then
+    local ok, known = pcall(legacyIsPlayerSpell, spellID)
     if ok and known then return true end
   end
 
@@ -408,6 +569,7 @@ end
 
 function addon:ShouldTriggerBeActive(trig)
   if not db or db.enabled == false then return false end
+  if addon:IsQuietHours() then return false end
   if not GlobalRateOk() then return false end
 
   local ov = addon:GetTriggerOverride(trig.id)
@@ -454,25 +616,68 @@ function addon:TriggerCooldownOk(trig)
   return true
 end
 
+function addon:GetTriggerCooldownSeconds(trig)
+  local ov = addon:GetTriggerOverride(trig.id)
+
+  local cd = (ov and tonumber(ov.cooldown)) or tonumber(trig.cooldown)
+  if type(cd) ~= "number" then
+    cd = tonumber(db and db.globalCooldown)
+  end
+  cd = addon:ClampNumber(cd or 0, 0, 600)
+
+  if trig.event == "UNIT_SPELLCAST_SUCCEEDED" then
+    local floor = GetRotationFloorSeconds()
+    if floor and floor > 0 and cd < floor then
+      cd = floor
+    end
+  end
+
+  if cd > 0 and db and db.adaptiveCooldowns == true then
+    local maxMult = tonumber(db.adaptiveCooldownMax) or 2
+    maxMult = addon:ClampNumber(maxMult, 1, 5)
+    local load = GetSendLoad()
+    if load > 0 then
+      cd = cd * (1 + (maxMult - 1) * load)
+    end
+  end
+
+  return cd or 0
+end
+
 function addon:GetTriggerMessages(trig)
+  local function ResolveLocaleMessages(messages)
+    if type(messages) ~= "table" then return messages end
+    if messages[1] ~= nil or messages.solo or messages.party or messages.raid or messages.instance then
+      return messages
+    end
+    local locale = (type(GetLocale) == "function") and GetLocale() or nil
+    if locale and type(messages[locale]) == "table" then
+      return messages[locale]
+    end
+    if type(messages.default) == "table" then
+      return messages.default
+    end
+    return messages
+  end
+
   local ov = addon:GetTriggerOverride(trig.id)
   if ov and type(ov.messages) == "table" and #ov.messages > 0 then
-    return ov.messages
+    return ResolveLocaleMessages(ov.messages)
   end
   
   -- Check for mood-specific messages
   local mood = db and db.moodProfile or "default"
   if trig.messagesByMood and type(trig.messagesByMood) == "table" then
     if mood ~= "default" and trig.messagesByMood[mood] then
-      return trig.messagesByMood[mood]
+        return ResolveLocaleMessages(trig.messagesByMood[mood])
     end
     -- Fall back to default mood if available
     if trig.messagesByMood.default then
-      return trig.messagesByMood.default
+      return ResolveLocaleMessages(trig.messagesByMood.default)
     end
   end
   
-  return trig.messages
+  return ResolveLocaleMessages(trig.messages)
 end
 
 function addon:GetTriggerChannel(trig)
@@ -593,6 +798,26 @@ function addon:ShowStats()
   end
 end
 
+function addon:PruneStats(maxAgeDays)
+  if not db or type(db.stats) ~= "table" then return end
+  if type(db.stats.triggers) ~= "table" then return end
+
+  local maxDays = tonumber(maxAgeDays) or 30
+  if maxDays < 1 then maxDays = 1 end
+  local cutoff = time() - (maxDays * 24 * 60 * 60)
+
+  for trigId, stat in pairs(db.stats.triggers) do
+    local lastFired = type(stat) == "table" and tonumber(stat.lastFired) or 0
+    local exists = addon.TriggerById and addon.TriggerById[trigId]
+    if not exists then
+      db.stats.triggers[trigId] = nil
+    elseif lastFired > 0 and lastFired < cutoff then
+      db.stats.triggers[trigId] = nil
+      db.stats.session[trigId] = nil
+    end
+  end
+end
+
 -- Loot processing (handles async item info in Retail)
 local function GetItemQuality(itemLink)
   if C_Item and type(C_Item.GetItemInfo) == "function" then
@@ -601,8 +826,9 @@ local function GetItemQuality(itemLink)
       return info.quality
     end
   end
-  if type(GetItemInfo) == "function" then
-    local _, _, quality = GetItemInfo(itemLink)
+  local legacyGetItemInfo = rawget(_G, "GetItemInfo")
+  if type(legacyGetItemInfo) == "function" then
+    local _, _, quality = legacyGetItemInfo(itemLink)
     if type(quality) == "number" then return quality end
   end
   return nil
@@ -659,7 +885,7 @@ function addon:ProcessLootMessage(message, eventName, attempts)
 end
 
 function addon:MakeContext(spellID, extraData)
-  local _, instType = addon:GetInstanceType()
+  local inInstance, instType = addon:GetInstanceType()
   local specID, specName = addon:GetSpecInfo()
   local specIndex = type(GetSpecialization) == "function" and GetSpecialization() or nil
   local role = (type(GetSpecializationRole) == "function" and specIndex) and GetSpecializationRole(specIndex) or ""
@@ -706,6 +932,10 @@ function addon:MakeContext(spellID, extraData)
   local raceName = UnitRace("player") or ""
   
   local name, realm = UnitName("player")
+  local playerFull = name or ""
+  if name and realm and realm ~= "" then
+    playerFull = name .. "-" .. realm
+  end
   local faction = UnitFactionGroup("player") or ""
   local className = UnitClass("player")
   local subzone = GetSubZoneText() or ""
@@ -718,9 +948,14 @@ function addon:MakeContext(spellID, extraData)
       continent = parent and parent.name or ""
     end
   end
-  local instanceName, _, _, _, _, _, _, instanceDifficultyID, instanceDifficultyName = GetInstanceInfo()
+  local instanceName, _, instanceDifficultyID, instanceDifficultyName, _, _, _, instanceMapID, lfgID = GetInstanceInfo()
   local equippedIlvl = select(2, GetAverageItemLevel())
 
+  local targetName, targetRealm = UnitName("target")
+  local targetFull = targetName or "nobody"
+  if targetName and targetRealm and targetRealm ~= "" then
+    targetFull = targetName .. "-" .. targetRealm
+  end
   local targetClassName = UnitClass("target")
   local targetRaceName = UnitRace("target") or ""
   local targetLevel = UnitLevel("target")
@@ -729,10 +964,55 @@ function addon:MakeContext(spellID, extraData)
   local groupSize = GetNumGroupMembers() or 1
   local isRaid = IsInRaid() and "true" or "false"
   local isParty = (IsInGroup() and not IsInRaid()) and "true" or "false"
+  local groupType = "solo"
+  if isRaid == "true" then
+    groupType = "raid"
+  elseif isParty == "true" then
+    groupType = "party"
+  end
+
+  local inInstanceStr = inInstance and "true" or "false"
+
+  local affixNames = {}
+  if C_MythicPlus and type(C_MythicPlus.GetCurrentAffixes) == "function" then
+    local ok, affixes = pcall(C_MythicPlus.GetCurrentAffixes)
+    if ok and type(affixes) == "table" then
+      for _, affix in ipairs(affixes) do
+        local affixName = (type(affix) == "table") and affix["name"] or nil
+        if type(affixName) == "string" and affixName ~= "" then
+          table.insert(affixNames, affixName)
+        end
+      end
+    end
+  end
+  local affixes = table.concat(affixNames, ", ")
+  local affix1 = affixNames[1] or ""
+  local affix2 = affixNames[2] or ""
+  local affix3 = affixNames[3] or ""
+  local affix4 = affixNames[4] or ""
+
+  local keystoneMapID = ""
+  local keystoneLevel = ""
+  if C_ChallengeMode and type(C_ChallengeMode.GetActiveKeystoneInfo) == "function" then
+    local ok, mapID, level = pcall(C_ChallengeMode.GetActiveKeystoneInfo)
+    if ok and mapID then
+      keystoneMapID = tostring(mapID or "")
+      keystoneLevel = tostring(level or "")
+    end
+  end
+  if keystoneMapID == "" and C_MythicPlus and type(C_MythicPlus.GetOwnedKeystoneInfo) == "function" then
+    local ok, mapID, level = pcall(C_MythicPlus.GetOwnedKeystoneInfo)
+    if ok and mapID then
+      keystoneMapID = tostring(mapID or "")
+      keystoneLevel = tostring(level or "")
+    end
+  end
 
   local ctx = {
     player = name or "",
-    target = UnitName("target") or "nobody",
+    ["player-full"] = playerFull or (name or ""),
+    target = targetName or "nobody",
+    ["target-full"] = targetFull or (targetName or "nobody"),
     zone = addon:GetZone(),
     subzone = subzone,
     mapID = mapID or "",
@@ -745,6 +1025,18 @@ function addon:MakeContext(spellID, extraData)
     instanceType = instType or "",
     instanceName = instanceName or "",
     instanceDifficulty = instanceDifficultyName or tostring(instanceDifficultyID or ""),
+    instanceDifficultyID = tostring(instanceDifficultyID or ""),
+    instanceMapID = tostring(instanceMapID or ""),
+    instanceLFGID = tostring(lfgID or ""),
+    inInstance = inInstanceStr,
+    groupType = groupType,
+    affixes = affixes,
+    affix1 = affix1,
+    affix2 = affix2,
+    affix3 = affix3,
+    affix4 = affix4,
+    keystoneMapID = keystoneMapID,
+    keystoneLevel = keystoneLevel,
     spell = spellID and (addon:GetSpellName(spellID) or tostring(spellID)) or "",
     health = tostring(health),
     healthMax = tostring(healthMax),
@@ -761,6 +1053,7 @@ function addon:MakeContext(spellID, extraData)
     targetRace = targetRaceName,
     targetLevel = tostring(targetLevel or ""),
     targetDead = targetDead,
+    targetRealm = targetRealm or "",
     guild = guildName,
     level = tostring(level),
     race = raceName,
@@ -976,9 +1269,13 @@ function addon:MatchesTrigger(trig, eventName, args)
   end
   
   -- Random chance (0.0 to 1.0, where 0.5 = 50%)
-  if type(cond.randomChance) == "number" then
-    if math.random() > cond.randomChance then
-      return false
+  if cond.randomChance ~= nil then
+    local chance = tonumber(cond.randomChance)
+    if chance then
+      if chance <= 0 then return false end
+      if chance < 1 and math.random() > chance then
+        return false
+      end
     end
   end
   
@@ -1008,11 +1305,13 @@ function addon:MatchesTrigger(trig, eventName, args)
     else
       size = 1
     end
-    
-    if cond.groupSize.min and size < cond.groupSize.min then
+
+    local minSize = tonumber(cond.groupSize.min)
+    local maxSize = tonumber(cond.groupSize.max)
+    if minSize and size < minSize then
       return false
     end
-    if cond.groupSize.max and size > cond.groupSize.max then
+    if maxSize and size > maxSize then
       return false
     end
   end
@@ -1023,14 +1322,17 @@ function addon:MatchesTrigger(trig, eventName, args)
     if type(AuraUtil) == "table" and type(AuraUtil.FindAuraByName) == "function" then
       -- Retail API
       foundAura = AuraUtil.FindAuraByName(cond.hasAura, "player") ~= nil
-    elseif type(UnitBuff) == "function" then
-      -- Classic API - scan buffs
-      for i = 1, 40 do
-        local name, _, _, _, _, _, _, _, _, spellId = UnitBuff("player", i)
-        if not name then break end
-        if name == cond.hasAura or spellId == cond.hasAura then
-          foundAura = true
-          break
+    else
+      local legacyUnitBuff = rawget(_G, "UnitBuff")
+      if type(legacyUnitBuff) == "function" then
+        -- Classic API - scan buffs
+        for i = 1, 40 do
+          local name, _, _, _, _, _, _, _, _, spellId = legacyUnitBuff("player", i)
+          if not name then break end
+          if name == cond.hasAura or spellId == cond.hasAura then
+            foundAura = true
+            break
+          end
         end
       end
     end
@@ -1052,21 +1354,92 @@ function addon:MatchesTrigger(trig, eventName, args)
   end
   
   -- Health percentage threshold
-  if type(cond.healthBelow) == "number" or type(cond.healthAbove) == "number" then
+  if cond.healthBelow ~= nil or cond.healthAbove ~= nil then
+    local below = tonumber(cond.healthBelow)
+    local above = tonumber(cond.healthAbove)
     local healthMax = UnitHealthMax("player") or 0
     local healthPct = 0
     if healthMax > 0 then
       healthPct = (UnitHealth("player") / healthMax) * 100
     end
-    if type(cond.healthBelow) == "number" and healthPct >= cond.healthBelow then
-      return false
+    if below then
+      below = addon:ClampNumber(below, 0, 100)
+      if healthPct >= below then return false end
     end
-    if type(cond.healthAbove) == "number" and healthPct <= cond.healthAbove then
-      return false
+    if above then
+      above = addon:ClampNumber(above, 0, 100)
+      if healthPct <= above then return false end
     end
   end
 
   return true
+end
+
+local PACK_PREFIXES = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
+
+local function Addons_Load(name)
+  if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
+    pcall(C_AddOns.LoadAddOn, name)
+    return
+  end
+  local legacyLoadAddOn = rawget(_G, "LoadAddOn")
+  if type(legacyLoadAddOn) == "function" then
+    pcall(legacyLoadAddOn, name)
+  end
+end
+
+local function Addons_GetNum()
+  if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
+    return C_AddOns.GetNumAddOns()
+  end
+  local legacyGetNumAddOns = rawget(_G, "GetNumAddOns")
+  if type(legacyGetNumAddOns) == "function" then
+    return legacyGetNumAddOns()
+  end
+  return 0
+end
+
+local function Addons_GetInfo(i)
+  if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
+    return C_AddOns.GetAddOnInfo(i)
+  end
+  local legacyGetAddOnInfo = rawget(_G, "GetAddOnInfo")
+  if type(legacyGetAddOnInfo) == "function" then
+    return legacyGetAddOnInfo(i)
+  end
+  return nil
+end
+
+local function Addons_GetMeta(addonName, field)
+  if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
+    return C_AddOns.GetAddOnMetadata(addonName, field)
+  end
+  local legacyGetAddOnMetadata = rawget(_G, "GetAddOnMetadata")
+  if type(legacyGetAddOnMetadata) == "function" then
+    return legacyGetAddOnMetadata(addonName, field)
+  end
+  return nil
+end
+
+local function Addons_IsLoaded(addonName)
+  if C_AddOns and type(C_AddOns.IsAddOnLoaded) == "function" then
+    return C_AddOns.IsAddOnLoaded(addonName)
+  end
+  local legacyIsAddOnLoaded = rawget(_G, "IsAddOnLoaded")
+  if type(legacyIsAddOnLoaded) == "function" then
+    return legacyIsAddOnLoaded(addonName)
+  end
+  return false
+end
+
+local function HasPackPrefix(name)
+  if type(name) ~= "string" then return false end
+  for _, prefix in ipairs(PACK_PREFIXES) do
+    if string.sub(name, 1, #prefix) == prefix then
+      return true
+    end
+  end
+  return false
 end
 
 function addon:LoadPacksForPlayer()
@@ -1081,70 +1454,21 @@ function addon:LoadPacksForPlayer()
   --   ## X-EmoteControl-Race: VOIDELF
   -- (Legacy keys with X-SpeakinLite-* are also supported.)
 
-  local function Load(name)
-    if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
-      pcall(C_AddOns.LoadAddOn, name)
-      return
-    end
-    if type(LoadAddOn) == "function" then
-      pcall(LoadAddOn, name)
-    end
-  end
-
-  local function GetNum()
-    if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
-      return C_AddOns.GetNumAddOns()
-    end
-    if type(GetNumAddOns) == "function" then
-      return GetNumAddOns()
-    end
-    return 0
-  end
-
-  local function GetInfo(i)
-    if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
-      return C_AddOns.GetAddOnInfo(i)
-    end
-    if type(GetAddOnInfo) == "function" then
-      return GetAddOnInfo(i)
-    end
-    return nil
-  end
-
-  local function GetMeta(addonName, field)
-    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
-      return C_AddOns.GetAddOnMetadata(addonName, field)
-    end
-    if type(GetAddOnMetadata) == "function" then
-      return GetAddOnMetadata(addonName, field)
-    end
-    return nil
-  end
-
   local playerClass = addon:SafeLower(addon:GetPlayerClass()) or ""
   local playerRace = addon:SafeLower(addon:GetPlayerRaceFile()) or ""
 
-  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
-  local function HasPackPrefix(name)
-    for _, prefix in ipairs(prefixes) do
-      if string.sub(name, 1, #prefix) == prefix then
-        return true
-      end
-    end
-    return false
-  end
-  local n = GetNum()
+  local n = Addons_GetNum()
   for i = 1, n do
-    local name = GetInfo(i)
+    local name = Addons_GetInfo(i)
     if type(name) == "string" and HasPackPrefix(name) then
       local packType = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+        Addons_GetMeta(name, "X-EmoteControl-PackType") or Addons_GetMeta(name, "X-SpeakinLite-PackType")
       )
       local classTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+        Addons_GetMeta(name, "X-EmoteControl-Class") or Addons_GetMeta(name, "X-SpeakinLite-Class")
       )
       local raceTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+        Addons_GetMeta(name, "X-EmoteControl-Race") or Addons_GetMeta(name, "X-SpeakinLite-Race")
       )
 
       -- Determine if we should load this pack
@@ -1169,7 +1493,7 @@ function addon:LoadPacksForPlayer()
       end
       
       if shouldLoad then
-        Load(name)
+        Addons_Load(name)
       end
     end
   end
@@ -1177,8 +1501,7 @@ end
 
 local function NormalizePackIdFromAddonName(name)
   if type(name) ~= "string" then return nil end
-  local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
-  for _, prefix in ipairs(prefixes) do
+  for _, prefix in ipairs(PACK_PREFIXES) do
     if string.sub(name, 1, #prefix) == prefix then
       name = string.sub(name, #prefix + 1)
       break
@@ -1193,72 +1516,21 @@ end
 function addon:GetAvailablePackAddOns()
   local packs = {}
 
-  local function GetNum()
-    if C_AddOns and type(C_AddOns.GetNumAddOns) == "function" then
-      return C_AddOns.GetNumAddOns()
-    end
-    if type(GetNumAddOns) == "function" then
-      return GetNumAddOns()
-    end
-    return 0
-  end
-
-  local function GetInfo(i)
-    if C_AddOns and type(C_AddOns.GetAddOnInfo) == "function" then
-      return C_AddOns.GetAddOnInfo(i)
-    end
-    if type(GetAddOnInfo) == "function" then
-      return GetAddOnInfo(i)
-    end
-    return nil
-  end
-
-  local function GetMeta(addonName, field)
-    if C_AddOns and type(C_AddOns.GetAddOnMetadata) == "function" then
-      return C_AddOns.GetAddOnMetadata(addonName, field)
-    end
-    if type(GetAddOnMetadata) == "function" then
-      return GetAddOnMetadata(addonName, field)
-    end
-    return nil
-  end
-
-  local function IsLoaded(addonName)
-    if C_AddOns and type(C_AddOns.IsAddOnLoaded) == "function" then
-      return C_AddOns.IsAddOnLoaded(addonName)
-    end
-    if type(IsAddOnLoaded) == "function" then
-      return IsAddOnLoaded(addonName)
-    end
-    return false
-  end
-
-  local function HasPackPrefix(name)
-    if type(name) ~= "string" then return false end
-    local prefixes = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
-    for _, prefix in ipairs(prefixes) do
-      if string.sub(name, 1, #prefix) == prefix then
-        return true
-      end
-    end
-    return false
-  end
-
-  local n = GetNum()
+  local n = Addons_GetNum()
   for i = 1, n do
-    local name, title, notes, loadable, reason, security = GetInfo(i)
+    local name, title, notes, loadable, reason, security = Addons_GetInfo(i)
     if type(name) == "string" and HasPackPrefix(name) then
       local packType = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-PackType") or GetMeta(name, "X-SpeakinLite-PackType")
+        Addons_GetMeta(name, "X-EmoteControl-PackType") or Addons_GetMeta(name, "X-SpeakinLite-PackType")
       )
       local classTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Class") or GetMeta(name, "X-SpeakinLite-Class")
+        Addons_GetMeta(name, "X-EmoteControl-Class") or Addons_GetMeta(name, "X-SpeakinLite-Class")
       )
       local raceTag = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-Race") or GetMeta(name, "X-SpeakinLite-Race")
+        Addons_GetMeta(name, "X-EmoteControl-Race") or Addons_GetMeta(name, "X-SpeakinLite-Race")
       )
       local packId = addon:SafeLower(
-        GetMeta(name, "X-EmoteControl-PackId") or GetMeta(name, "X-SpeakinLite-PackId")
+        Addons_GetMeta(name, "X-EmoteControl-PackId") or Addons_GetMeta(name, "X-SpeakinLite-PackId")
       )
 
       if not packId or packId == "" then
@@ -1277,7 +1549,7 @@ function addon:GetAvailablePackAddOns()
           addonName = name,
           title = title or name,
           loadable = loadable,
-          loaded = IsLoaded(name),
+          loaded = Addons_IsLoaded(name),
           packType = packType,
           classTag = classTag,
           raceTag = raceTag,
@@ -1347,22 +1619,60 @@ end
 
 function addon:SetPackEnabled(packId, enabled, addonName)
   local theDb = addon:GetDB() or {}
-  theDb.packEnabled = theDb.packEnabled or {}
-  theDb.packEnabled[packId] = enabled and true or false
+  if theDb.packProfilesEnabled == true then
+    local specId = select(1, addon:GetSpecInfo())
+    if specId then
+      theDb.packEnabledBySpec = theDb.packEnabledBySpec or {}
+      theDb.packEnabledBySpec[specId] = theDb.packEnabledBySpec[specId] or {}
+      theDb.packEnabledBySpec[specId][packId] = enabled and true or false
+    else
+      theDb.packEnabled = theDb.packEnabled or {}
+      theDb.packEnabled[packId] = enabled and true or false
+    end
+  else
+    theDb.packEnabled = theDb.packEnabled or {}
+    theDb.packEnabled[packId] = enabled and true or false
+  end
   EmoteControlDB = theDb
   SpeakinLiteDB = EmoteControlDB
 
   if enabled and addonName then
     if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
       pcall(C_AddOns.LoadAddOn, addonName)
-    elseif type(LoadAddOn) == "function" then
-      pcall(LoadAddOn, addonName)
+    else
+      local legacyLoadAddOn = rawget(_G, "LoadAddOn")
+      if type(legacyLoadAddOn) == "function" then
+        pcall(legacyLoadAddOn, addonName)
+      end
     end
   end
 
   if type(addon.RebuildAndRegister) == "function" then
     addon:RebuildAndRegister()
   end
+end
+
+function addon:GetPackEnabled(packId)
+  if type(packId) ~= "string" or packId == "" then return true end
+  local theDb = addon:GetDB() or {}
+
+  if theDb.packProfilesEnabled == true then
+    local specId = select(1, addon:GetSpecInfo())
+    if specId and type(theDb.packEnabledBySpec) == "table" then
+      local t = theDb.packEnabledBySpec[specId]
+      if type(t) == "table" then
+        local v = t[packId]
+        if v ~= nil then return v == true end
+      end
+    end
+  end
+
+  if type(theDb.packEnabled) == "table" then
+    local v = theDb.packEnabled[packId]
+    if v ~= nil then return v == true end
+  end
+
+  return true
 end
 
 function addon:RebuildAndRegister()
@@ -1416,7 +1726,7 @@ function addon:HandleEvent(eventName, ...)
 
   if eventName == "UI_ERROR_MESSAGE" then
     local _, message = ...
-    local errFull = _G.ERR_INV_FULL or _G.ERR_BAG_FULL
+    local errFull = rawget(_G, "ERR_INV_FULL") or rawget(_G, "ERR_BAG_FULL")
     if message and errFull and message == errFull then
       local bucket = addon.TriggersByEvent and addon.TriggersByEvent.BAG_FULL
       if bucket then
@@ -1437,8 +1747,8 @@ function addon:HandleEvent(eventName, ...)
       local lowestPct
       for slot = 1, 18 do
         if type(GetInventoryItemDurability) == "function" then
-          local cur, max = GetInventoryItemDurability("player", slot)
-          if cur and max and max > 0 then
+          local ok, cur, max = pcall(GetInventoryItemDurability, slot)
+          if ok and cur and max and max > 0 then
             local pct = cur / max
             if not lowestPct or pct < lowestPct then
               lowestPct = pct
@@ -1565,13 +1875,21 @@ function addon:HandleEvent(eventName, ...)
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    addon._combatLogInfo = addon._combatLogInfo or {}
+    -- Reuse a single table for combat log event info to avoid per-event allocations
     local eventInfo = addon._combatLogInfo
-    eventInfo[1], eventInfo[2], eventInfo[3], eventInfo[4], eventInfo[5], eventInfo[6], eventInfo[7],
-    eventInfo[8], eventInfo[9], eventInfo[10], eventInfo[11], eventInfo[12], eventInfo[13], eventInfo[14],
-    eventInfo[15], eventInfo[16], eventInfo[17], eventInfo[18], eventInfo[19], eventInfo[20], eventInfo[21] =
-      CombatLogGetCurrentEventInfo()
+    if not eventInfo then
+      eventInfo = {}
+      addon._combatLogInfo = eventInfo
+    else
+      wipe(eventInfo)
+    end
 
+    -- Populate only the indices we actually use from CombatLogGetCurrentEventInfo
+    local _
+    _, eventInfo[2], _, eventInfo[4], _, _, _, _, eventInfo[9],
+      eventInfo[10], eventInfo[11], eventInfo[12], eventInfo[13],
+      eventInfo[14], eventInfo[15], eventInfo[16], eventInfo[17],
+      eventInfo[18], eventInfo[19], eventInfo[20], eventInfo[21] = CombatLogGetCurrentEventInfo()
     local subevent = eventInfo[2]
     local sourceGUID = eventInfo[4]
     local destName = eventInfo[9]
@@ -1660,20 +1978,24 @@ function addon:HandleEvent(eventName, ...)
 end
 
 local function PrintHelp()
-  addon:Print("Commands:")
-  addon:Print("/sl status - View addon status")
-  addon:Print("/sl stats - View usage statistics")
-  addon:Print("/sl resetstats - Reset usage statistics")
-  addon:Print("/sl mood [profile] - Change personality (default/serious/humorous/dark/heroic)")
-  addon:Print("/sl debug - View debug info")
-  addon:Print("/sl options - Open options panel")
-  addon:Print("/sl packs - Manage packs")
-  addon:Print("/sl editor - Customize triggers")
-  addon:Print("/sl builder - Create custom triggers visually")
-  addon:Print("/sl import | /sl export - Share configurations")
-  addon:Print("/sl on | /sl off - Enable/disable addon")
-  addon:Print("/sl channel <type> - Set default channel")
-  addon:Print("/sl cooldown <seconds> - Set global cooldown")
+  addon:Print(L.HELP_HEADER)
+  addon:Print(L.HELP_STATUS)
+  addon:Print(L.HELP_STATS)
+  addon:Print(L.HELP_RESETSTATS)
+  addon:Print(L.HELP_MOOD)
+  addon:Print(L.HELP_DEBUG)
+  addon:Print(L.HELP_OPTIONS)
+  addon:Print(L.HELP_PACKS)
+  addon:Print(L.HELP_EDITOR)
+  addon:Print(L.HELP_BUILDER)
+  addon:Print(L.HELP_IMPORTEXPORT)
+  addon:Print(L.HELP_ONOFF)
+  addon:Print(L.HELP_CHANNEL)
+  addon:Print(L.HELP_COOLDOWN)
+  addon:Print(L.HELP_TEST)
+  addon:Print(L.HELP_COOLDOWNS)
+  addon:Print(L.HELP_QUIET)
+  addon:Print(L.HELP_PACKPROFILE)
 end
 
 local function HandleSlash(msg)
@@ -1701,6 +2023,9 @@ local function HandleSlash(msg)
     addon:Print("Rotation protection: " .. tostring(db and db.rotationProtection))
     addon:Print("Global cooldown: " .. tostring(db and db.globalCooldown) .. "s")
     addon:Print("Max per minute: " .. tostring(db and db.maxPerMinute))
+    addon:Print("Adaptive cooldowns: " .. tostring(db and db.adaptiveCooldowns) .. " (max x" .. tostring(db and db.adaptiveCooldownMax) .. ")")
+    addon:Print("Spec-based pack profiles: " .. tostring(db and db.packProfilesEnabled))
+    addon:Print("Quiet hours: " .. tostring(db and db.quietHoursEnabled) .. " (" .. tostring(db and db.quietHoursStart) .. "-" .. tostring(db and db.quietHoursEnd) .. ")")
     local nPacks = 0
     for _ in pairs(addon.Packs or {}) do nPacks = nPacks + 1 end
     addon:Print("Loaded packs: " .. nPacks)
@@ -1709,13 +2034,16 @@ local function HandleSlash(msg)
   
   if cmd == "debug" then
     addon:Print("=== Debug Info ===")
+    if type(addon._loadTime) == "number" then
+      addon:Print("Load time: " .. string.format("%.2f", addon._loadTime * 1000) .. "ms")
+    end
     addon:Print("Settings API: " .. tostring(Settings ~= nil))
     addon:Print("Settings.OpenToCategory: " .. tostring(Settings and type(Settings.OpenToCategory) == "function"))
     addon:Print("Settings Category: " .. tostring(addon._settingsCategory ~= nil))
     addon:Print("Settings Category ID: " .. tostring(addon._settingsCategoryId))
     addon:Print("OpenSettings function: " .. tostring(type(addon.OpenSettings) == "function"))
-    addon:Print("InterfaceOptions: " .. tostring(InterfaceOptions_AddCategory ~= nil))
-    addon:Print("InterfaceOptionsFrame_OpenToCategory: " .. tostring(InterfaceOptionsFrame_OpenToCategory ~= nil))
+    addon:Print("InterfaceOptions: " .. tostring(rawget(_G, "InterfaceOptions_AddCategory") ~= nil))
+    addon:Print("InterfaceOptionsFrame_OpenToCategory: " .. tostring(rawget(_G, "InterfaceOptionsFrame_OpenToCategory") ~= nil))
     return
   end
 
@@ -1729,6 +2057,37 @@ local function HandleSlash(msg)
   end
 
   if cmd == "packs" then
+    local sub, filter = rest:match("^(%S+)%s*(.-)%s*$")
+    if sub == "list" then
+      local list = {}
+      if type(addon.GetPackDescriptors) == "function" then
+        list = addon:GetPackDescriptors()
+      else
+        for id, pack in pairs(addon.Packs or {}) do
+          table.insert(list, { id = id, name = (pack and pack.name) or id, loaded = true })
+        end
+      end
+      local needle = addon:SafeLower(filter or "") or ""
+      addon:Print("Packs:")
+      local shown = 0
+      for _, entry in ipairs(list) do
+        local label = entry.name or entry.id
+        local hay = addon:SafeLower(label .. " " .. tostring(entry.id or "")) or ""
+        if needle == "" or hay:find(needle, 1, true) then
+          local enabled = (type(addon.GetPackEnabled) == "function") and addon:GetPackEnabled(entry.id) or addon:IsPackEnabled(entry.id)
+          local status = enabled and "enabled" or "disabled"
+          local loaded = (entry.loaded == false) and "not loaded" or "loaded"
+          addon:Print("- " .. label .. " (" .. status .. ", " .. loaded .. ")")
+          shown = shown + 1
+          if shown >= 50 then
+            addon:Print("..." .. tostring(#list - shown) .. " more. Use /sl packs list <filter>.")
+            break
+          end
+        end
+      end
+      return
+    end
+
     if type(addon.OpenPacksPanel) == "function" then
       addon:OpenPacksPanel()
     else
@@ -1797,6 +2156,116 @@ local function HandleSlash(msg)
     addon:Print("Global cooldown set to " .. db.globalCooldown .. "s")
     return
   end
+
+  if cmd == "test" then
+    local trigId = rest
+    if not trigId or trigId == "" then
+      addon:Print("Usage: /sl test <triggerId>")
+      addon:Print("Tip: Use /sl editor to view trigger IDs.")
+      return
+    end
+    local trig = addon.TriggerById and addon.TriggerById[trigId]
+    if not trig then
+      addon:Print("Trigger not found: " .. trigId)
+      return
+    end
+    local ctx = addon:MakeContext(trig.spellID)
+    addon:FireTrigger(trig, ctx)
+    addon:Print("Tested trigger: " .. trigId)
+    return
+  end
+
+  if cmd == "cooldowns" then
+    local now = GetTime()
+    local list = {}
+    for id, trig in pairs(addon.TriggerById or {}) do
+      if trig.lastFired then
+        local cd = addon:GetTriggerCooldownSeconds(trig)
+        if cd and cd > 0 then
+          local remaining = cd - (now - trig.lastFired)
+          if remaining > 0 then
+            table.insert(list, {
+              id = id,
+              remaining = remaining,
+              category = trig.category or "general",
+            })
+          end
+        end
+      end
+    end
+
+    if #list == 0 then
+      addon:Print("No active trigger cooldowns.")
+      return
+    end
+
+    table.sort(list, function(a, b) return a.remaining > b.remaining end)
+    addon:Print("Active cooldowns (top 10):")
+    for i = 1, math.min(10, #list) do
+      local t = list[i]
+      addon:Print(string.format("  %d. %s [%s] - %.1fs", i, t.id, t.category, t.remaining))
+    end
+    return
+  end
+
+  if cmd == "quiet" then
+    local arg = addon:SafeLower(rest or "")
+    if arg == "" then
+      local enabled = db and db.quietHoursEnabled
+      local startHour = db and db.quietHoursStart
+      local endHour = db and db.quietHoursEnd
+      addon:Print("Quiet hours: " .. tostring(enabled) .. " (" .. tostring(startHour) .. "-" .. tostring(endHour) .. ")")
+      return
+    end
+
+    if arg == "off" then
+      db.quietHoursEnabled = false
+      addon:Print("Quiet hours disabled.")
+      return
+    end
+
+    local startStr, endStr = arg:match("^(%d+)%s*%-%s*(%d+)$")
+    local startHour = tonumber(startStr)
+    local endHour = tonumber(endStr)
+    if startHour == nil or endHour == nil or startHour < 0 or startHour > 23 or endHour < 0 or endHour > 23 then
+      addon:Print("Usage: /sl quiet 23-7 (24h clock) or /sl quiet off")
+      return
+    end
+
+    db.quietHoursEnabled = true
+    db.quietHoursStart = startHour
+    db.quietHoursEnd = endHour
+    addon:Print("Quiet hours set to " .. startHour .. "-" .. endHour .. ".")
+    return
+  end
+
+  if cmd == "packprofile" then
+    local arg = addon:SafeLower(rest or "")
+    if arg == "" then
+      local specId, specName = addon:GetSpecInfo()
+      addon:Print("Spec-based pack profiles: " .. tostring(db and db.packProfilesEnabled))
+      addon:Print("Current spec: " .. tostring(specName or "") .. " (" .. tostring(specId or "") .. ")")
+      return
+    end
+    if arg == "on" then
+      db.packProfilesEnabled = true
+      addon:Print("Spec-based pack profiles enabled.")
+      if type(addon.RebuildAndRegister) == "function" then
+        addon:RebuildAndRegister()
+      end
+      return
+    end
+    if arg == "off" then
+      db.packProfilesEnabled = false
+      addon:Print("Spec-based pack profiles disabled.")
+      if type(addon.RebuildAndRegister) == "function" then
+        addon:RebuildAndRegister()
+      end
+      return
+    end
+    addon:Print("Usage: /sl packprofile on|off")
+    return
+  end
   
   if cmd == "mood" then
     local moods = {"default", "serious", "humorous", "dark", "heroic"}
@@ -1853,6 +2322,8 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SpeakinLiteDB = EmoteControlDB
     db = EmoteControlDB
     addon.db = db
+
+    InitLocale()
 
     SetDefault(db, "enabled", true)
     SetDefault(db, "channel", "EMOTE")
@@ -1930,15 +2401,16 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       db.packEnabled["common"] = true
       db.packEnabled["dailyactivities"] = true
       
-      addon:Print("Welcome! Auto-enabled your class, race, and daily activities packs.")
+      addon:Print(L.AUTO_ENABLED)
     end
 
     -- Seed random number generator (if available)
-    if math.randomseed then
-      math.randomseed(math.floor(GetTime() * 1000) % 2147483647)
-    elseif random then
+    local randomseed = rawget(math, "randomseed") or rawget(_G, "randomseed")
+    if type(randomseed) == "function" then
+      randomseed(math.floor(GetTime() * 1000) % 2147483647)
+    elseif type(random) == "function" then
       -- Some WoW versions use a global random function
-      random(1, 1000)
+      local _ = random(1, 1000)
     else
       -- Fallback: just call math.random a few times to initialize
       math.random(); math.random(); math.random()
@@ -1947,6 +2419,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon:LoadPacksForPlayer()
     addon:LoadCustomTriggers()  -- Load user-created triggers
     addon:RebuildAndRegister()
+    addon:PruneStats(30)
     CreateMinimapButton()
     if type(addon.CreateSettingsPanel) == "function" then
       addon:CreateSettingsPanel()
@@ -1960,7 +2433,8 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       addon:ShowOnboarding()
     end
 
-    addon:Print("Emote Control loaded. /sl help")
+    addon._loadTime = GetTime() - loadStart
+    addon:Print(L.LOADED)
     return
   end
 

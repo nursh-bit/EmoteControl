@@ -17,10 +17,10 @@ Each trigger has its own cooldown timer.
 ```
 
 #### 2. **Global Cooldown**
-Set in `/sl options` - applies a minimum cooldown to ALL triggers.
+Set in `/sl options` - used when a trigger has no cooldown set.
 - Default: 6 seconds
-- Range: 0-60 seconds
-- Overrides trigger cooldowns if higher
+- Range: 0-600 seconds
+- Does not override a trigger cooldown if one is set
 
 #### 3. **Rotation Protection**
 Special cooldown for spell rotation triggers (UNIT_SPELLCAST_SUCCEEDED).

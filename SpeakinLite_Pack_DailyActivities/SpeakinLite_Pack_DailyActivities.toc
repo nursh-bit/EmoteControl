@@ -5,6 +5,6 @@
 ## Version: 0.8.0
 ## Dependencies: SpeakinLite
 ## LoadOnDemand: 1
-## X-SpeakinLite-PackType: Activities
+## X-EmoteControl-PackType: Activities
 
 Pack.lua

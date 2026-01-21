@@ -1,5 +1,20 @@
 # Emote Control Changelog
 
+## Version 0.10.5 - QoL & Customization Update
+
+### New Features
+- Added AUTO channel routing (instance/raid/party/solo).
+- Added quiet hours scheduling and adaptive cooldown scaling.
+- Added `/sl test`, `/sl cooldowns`, `/sl quiet`, and `/sl packprofile` commands.
+- Added locale-specific message tables and spec-based pack profiles.
+- Expanded context tokens (instance/M+, time/date/weekday, target details).
+- Added pack discovery listing via `/sl packs list`.
+- Trigger Builder now supports condition fields (combat/group/health/target).
+
+### Fixes & Improvements
+- Safer legacy API fallbacks for Retail/Classic compatibility.
+- Improved rate limiting and cooldown visibility.
+
 ## Version 0.9.5 - Common/Daily/Professions Expansion
 
 ### New Features

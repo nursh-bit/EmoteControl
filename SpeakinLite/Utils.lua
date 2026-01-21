@@ -35,6 +35,7 @@ function addon:NormalizeChannel(s)
   -- Create a map for channel aliases
   local channels = {
     self = "SELF", local_ = "SELF", me = "SELF", 
+    auto = "AUTO", smart = "AUTO",
     say = "SAY", 
     yell = "YELL", 
     emote = "EMOTE", e = "EMOTE", 
