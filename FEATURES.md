@@ -1,4 +1,4 @@
-# Emote Control v0.8.0 - Feature Guide
+# Emote Control - Feature Guide
 
 ## 🎯 Quick Start
 
@@ -12,20 +12,71 @@ Use these in your custom messages:
 - `<healthmax>` - Maximum health
 - `<power%>` - Power percentage (mana/rage/energy)
 - `<power>` - Current power value
+- `<powermax>` - Maximum power value
 - `<powername>` - Name of your power type
 - `<combo>` - Combo points (rogues/druids/etc)
 - `<target-health%>` - Target's health percentage
+- `<target-health>` - Target's current health
+- `<target-healthmax>` - Target's max health
 
 #### Character Info
 - `<guild>` - Your guild name
 - `<level>` - Your character level
 - `<race>` - Your race name
+- `<realm>` - Your realm name
+- `<player-full>` - Your full name (Name-Realm)
+- `<faction>` - Your faction (Horde/Alliance)
+- `<ilvl>` - Your equipped item level
+- `<class>` - Your class (e.g., WARRIOR)
+- `<class-name>` - Your localized class name
+- `<spec>` - Your specialization name
+- `<role>` - Your spec role (TANK/HEALER/DAMAGER)
 
 #### Event-Specific
 - `<achievement>` - Achievement name (in achievement triggers)
+- `<achievementPoints>` - Achievement points earned
+- `<achievementID>` - Achievement ID
+- `<newLevel>` - New level on level-up triggers
 - `<item>` - Item name (in loot triggers)
 - `<itemlink>` - Full item link with color
 - `<quality>` - Item quality (Epic, Legendary, etc)
+- `<qualityNum>` - Item quality number (2-5)
+
+#### Instance & Group
+- `<instance>` / `<instance-type>` - Instance type (party/raid/pvp/etc)
+- `<instanceName>` - Instance name
+- `<instanceDifficulty>` - Instance difficulty name
+- `<instance-difficulty-id>` - Instance difficulty ID
+- `<instance-mapid>` - Instance map ID
+- `<instance-lfgid>` - Instance LFG ID
+- `<in-instance>` - true/false
+- `<group-size>` / `<party-size>` - Group size
+- `<group-type>` - solo/party/raid
+- `<is-raid>` - true/false
+- `<is-party>` - true/false
+
+#### Target Info
+- `<target-full>` - Target full name (Name-Realm)
+- `<target-realm>` - Target realm
+- `<target-class>` - Target class
+- `<target-race>` - Target race
+- `<target-level>` - Target level
+- `<target-dead>` - true/false
+
+#### Mythic+
+- `<keystone-level>` - Active or owned keystone level
+- `<keystone-mapid>` - Keystone map ID
+- `<affixes>` - Comma-separated affix names
+- `<affix-1>` ... `<affix-4>` - Individual affix names
+
+#### Location & Time
+- `<zone>` - Current zone
+- `<subzone>` - Current subzone
+- `<mapID>` - Current map ID
+- `<continent>` - Continent name
+- `<time>` - Local time (HH:MM)
+- `<date>` - Local date (YYYY-MM-DD)
+- `<weekday>` - Local weekday name
 
 #### Examples
 ```lua
@@ -149,6 +200,17 @@ messages = {
 - **party**: Used in 5-man groups
 - **raid**: Used in raid groups
 - **instance**: Used when in an instance/dungeon
+
+### Locale Variants
+Messages can also be localized by client locale:
+
+```lua
+messages = {
+  enUS = {"Ready check!"},
+  frFR = {"Vérification prête !"},
+  default = {"Ready!"}
+}
+```
 
 ### Fallback Behavior
 If you don't specify all variants, the addon will:
@@ -322,6 +384,12 @@ No manual configuration needed! Just install and play.
 
 ## 📝 Tips & Tricks
 
+### Adaptive Cooldowns (Anti-spam)
+When enabled, cooldowns scale up automatically as you approach the per-minute cap. Set the max multiplier to control how much cooldowns can stretch during heavy chat.
+
+### Spec-Based Pack Profiles
+Enable different pack selections per specialization. Turn on in settings or via `/sl packprofile on`, then toggle packs while in each spec.
+
 ### Combining Conditions
 ```lua
 conditions = {
@@ -360,13 +428,18 @@ messages = {
 - `/sl status` - View addon status
 - `/sl options` - Open options panel
 - `/sl packs` - Manage packs
+- `/sl packs list [filter]` - List packs in chat
 - `/sl editor` - Customize triggers
 - `/sl import` - Import/Export UI
 - `/sl export` - Import/Export UI
 - `/sl on` - Enable addon
 - `/sl off` - Disable addon
-- `/sl channel <type>` - Set default channel
+- `/sl channel <type>` - Set default channel (auto|self|say|yell|emote|party|raid|instance)
 - `/sl cooldown <seconds>` - Set global cooldown
+- `/sl test <triggerId>` - Test a trigger immediately
+- `/sl cooldowns` - Show active trigger cooldowns
+- `/sl quiet [HH-HH|off]` - Set quiet hours schedule
+- `/sl packprofile [on|off]` - Enable spec-based pack profiles
 
 ---
 

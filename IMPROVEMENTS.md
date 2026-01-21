@@ -282,7 +282,7 @@ lib:RegisterPack({name = "My Pack", triggers = {...}})
 local trigger = lib:CreateSpellTrigger(123, {"msg"}, {
   class = "WARRIOR",
   inCombat = true,
-  randomChance = 50
+  randomChance = 0.5
 })
 
 -- ❌ Avoid conditional logic in messages

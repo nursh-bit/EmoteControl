@@ -148,13 +148,19 @@ LibEmoteControl:Print(msg)
 
 ### Available Tokens
 - `<player>` - Character name
+- `<player-full>` - Full name (Name-Realm)
 - `<spell>` - Spell name
 - `<target>` - Target name
+- `<target-full>` - Target full name (Name-Realm)
+- `<target-realm>` - Target realm
 - `<zone>` - Current zone
 - `<spec>` - Current specialization
 - `<class>` - Character class
 - `<race>` - Character race
 - `<level>` - Character level
+- `<realm>` - Your realm name
+- `<faction>` - Your faction
+- `<ilvl>` - Equipped item level
 - `<health>`, `<health%%>`, `<healthmax>`
 - `<power>`, `<power%%>`, `<powermax>`, `<powername>`
 - `<combo>` - Combo points
@@ -163,16 +169,45 @@ LibEmoteControl:Print(msg)
 - `<achievement>` - Achievement name
 - `<item>`, `<itemlink>` - Item info
 - `<quality>` - Item quality
+- `<qualityNum>` - Item quality number
+- `<instance>` / `<instance-type>` - Instance type
+- `<instanceName>` - Instance name
+- `<instanceDifficulty>` - Instance difficulty name
+- `<instance-difficulty-id>` - Instance difficulty ID
+- `<instance-mapid>` - Instance map ID
+- `<instance-lfgid>` - Instance LFG ID
+- `<in-instance>` - true/false
+- `<group-size>` / `<party-size>` - Group size
+- `<group-type>` - solo/party/raid
+- `<is-raid>` - true/false
+- `<is-party>` - true/false
+- `<affixes>` - Comma-separated affix names
+- `<affix-1>` ... `<affix-4>` - Individual affix names
+- `<keystone-level>` - Keystone level
+- `<keystone-mapid>` - Keystone map ID
+- `<time>` - Local time (HH:MM)
+- `<date>` - Local date (YYYY-MM-DD)
+- `<weekday>` - Local weekday name
 
 ### Dynamic Content
 - `<pick:option1|option2|option3>` - Random selection
 - `<rng:1-100>` - Random number in range
 
+### Locale-Specific Messages
+Message tables can be localized by client locale:
+
+```lua
+messages = {
+  enUS = {"Ready!"},
+  deDE = {"Bereit!"},
+  default = {"Ready!"}
+}
+```
+
 ## Trigger Event Types
 
 ### Spell Events
 - `UNIT_SPELLCAST_SUCCEEDED` - When a spell is cast
-- `UNIT_SPELLCAST_FAILED` - When a spell fails
 
 ### Combat Events
 - `COMBAT_CRITICAL_HIT` - Critical damage dealt
@@ -181,12 +216,16 @@ LibEmoteControl:Print(msg)
 - `COMBAT_INTERRUPTED` - Spell interrupted
 
 ### Player Events
+- `PLAYER_REGEN_DISABLED` - Enter combat
+- `PLAYER_REGEN_ENABLED` - Leave combat
 - `PLAYER_LEVEL_UP` - Level increased
 - `PLAYER_DEAD` - Character dies
-- `PLAYER_UNGHOST` - Released from ghost form
+- `PLAYER_ALIVE` - Respawned
+- `RESURRECT_REQUEST` - Resurrection offered
 
 ### Loot Events
-- `LOOT_ITEM_PUSHED_INTO_CONTAINERS` - Item looted
+- `CHAT_MSG_LOOT` - Loot chat messages
+- `LOOT_READY` - Loot window opened
 
 ### Achievement Events
 - `ACHIEVEMENT_EARNED` - Achievement completed
@@ -207,7 +246,7 @@ LibEmoteControl:Print(msg)
 - `targetType` - Type of target
 - `spellID` - Spell ID
 - `spellName` - Spell name
-- `randomChance` - Percent chance (0-100)
+- `randomChance` - Probability (0.0 to 1.0)
 - `inCombat` - In combat
 - `inGroup` - In group/raid
 - `groupSize` - Group size requirement
