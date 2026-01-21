@@ -1696,6 +1696,10 @@ function addon:GetPackEnabled(packId)
 end
 
 function addon:RebuildAndRegister()
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+    addon._rebuildAfterCombat = true
+    return
+  end
   if type(addon.BuildTriggerIndex) == "function" then
     addon:BuildTriggerIndex()
   end
@@ -1727,6 +1731,11 @@ function addon:RebuildAndRegister()
 end
 
 function addon:HandleEvent(eventName, ...)
+  if eventName == "PLAYER_REGEN_ENABLED" and addon._rebuildAfterCombat then
+    addon._rebuildAfterCombat = nil
+    addon:RebuildAndRegister()
+    return
+  end
   if not db or db.enabled == false then return end
 
   -- Item info async load for loot parsing (Retail async cache)
