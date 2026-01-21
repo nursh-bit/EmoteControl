@@ -1,0 +1,35 @@
+{
+    "$schema": "https://raw.githubusercontent.com/LuaLS/lua-language-server/master/setting/schema.json",
+    "runtime": {
+        "version": "Lua 5.1",
+        "path": [
+            "?.lua",
+            "?/init.lua"
+        ]
+    },
+    "diagnostics": {
+        "enable": true,
+        "severity": {
+            "undefined-global": "Warning",
+            "lowercase-global": "Error"
+        },
+        "globals": [
+            "UIParent",
+            "CreateFrame",
+            "C_Timer",
+            "C_Map",
+            "C_NamePlate",
+            "PixelUtil",
+            "ViragDevTool_AddData"
+        ]
+    },
+    "workspace": {
+        "checkThirdParty": true,
+        "library": [
+            "~/.vscode/extensions/ketho.wow-api-*"
+        ]
+    },
+    "telemetry": {
+        "enable": false
+    }
+}

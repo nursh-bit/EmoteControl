@@ -114,55 +114,68 @@ end
 resolvers.combo = function() return tostring(UnitPower("player", 4) or 0) end
 
 -- Target
-resolvers.target = function() return UnitName("target") or "nobody" end
+resolvers.target = function() return (UnitName and UnitName("target")) or "nobody" end
 resolvers["target-full"] = function() return GetUnitNameFull("target") or "nobody" end
-resolvers["target-class"] = function() return UnitClass("target") or "" end
-resolvers["target-race"] = function() return UnitRace("target") or "" end
-resolvers["target-level"] = function() return tostring(UnitLevel("target") or "") end
-resolvers["target-dead"] = function() return UnitIsDeadOrGhost("target") and "true" or "false" end
-resolvers["target-realm"] = function() local _, r = UnitName("target"); return r or "" end
+resolvers["target-class"] = function() return (UnitClass and UnitClass("target")) or "" end
+resolvers["target-race"] = function() return (UnitRace and UnitRace("target")) or "" end
+resolvers["target-level"] = function() return tostring((UnitLevel and UnitLevel("target")) or "") end
+resolvers["target-dead"] = function() return (UnitIsDeadOrGhost and UnitIsDeadOrGhost("target")) and "true" or "false" end
+resolvers["target-realm"] = function() 
+    if not UnitName then return "" end
+    local _, r = UnitName("target"); 
+    return r or "" 
+end
 
-resolvers["target-health"] = function() return tostring(UnitHealth("target") or 0) end
-resolvers["target-healthmax"] = function() return tostring(UnitHealthMax("target") or 1) end
+resolvers["target-health"] = function() return tostring((UnitHealth and UnitHealth("target")) or 0) end
+resolvers["target-healthmax"] = function() return tostring((UnitHealthMax and UnitHealthMax("target")) or 1) end
 resolvers["target-health%"] = function()
-    if not UnitExists("target") then return "0" end
-    local h, m = UnitHealth("target"), UnitHealthMax("target")
+    if not UnitExists or not UnitExists("target") then return "0" end
+    local h = (UnitHealth and UnitHealth("target")) or 0
+    local m = (UnitHealthMax and UnitHealthMax("target")) or 1
     if not m or m == 0 then return "0" end
     return tostring(math.floor((h/m)*100)) 
 end
 
 -- Instance/Group
-resolvers.inInstance = function() return IsInInstance() end
+resolvers.inInstance = function() return (IsInInstance and IsInInstance()) or false end
 resolvers["in-instance"] = function(ctx) return ctx.inInstance and "true" or "false" end
 
-resolvers.instanceName = function() local name = GetInstanceInfo(); return name or "" end
+local function SafeGetInstanceInfo()
+    if GetInstanceInfo then return GetInstanceInfo() end
+    return nil, nil, nil, nil, nil, nil, nil, nil, nil
+end
+
+resolvers.instanceName = function() local name = SafeGetInstanceInfo(); return name or "" end
 resolvers["instance-name"] = resolvers.instanceName
-resolvers.instanceType = function() local _, type = GetInstanceInfo(); return type or "" end
+resolvers.instanceType = function() local _, type = SafeGetInstanceInfo(); return type or "" end
 resolvers["instance-type"] = resolvers.instanceType
 
-resolvers.instanceDifficulty = function() local _, _, _, diffName = GetInstanceInfo(); return diffName or "" end
+resolvers.instanceDifficulty = function() local _, _, _, diffName = SafeGetInstanceInfo(); return diffName or "" end
 resolvers["instance-difficulty"] = resolvers.instanceDifficulty
-resolvers["instance-difficulty-id"] = function() local _, _, diffID = GetInstanceInfo(); return tostring(diffID or "") end
-resolvers["instance-mapid"] = function() local _, _, _, _, _, _, _, mapID = GetInstanceInfo(); return tostring(mapID or "") end
-resolvers["instance-lfgid"] = function() local _, _, _, _, _, _, _, _, lfgID = GetInstanceInfo(); return tostring(lfgID or "") end
+resolvers["instance-difficulty-id"] = function() local _, _, diffID = SafeGetInstanceInfo(); return tostring(diffID or "") end
+resolvers["instance-mapid"] = function() local _, _, _, _, _, _, _, mapID = SafeGetInstanceInfo(); return tostring(mapID or "") end
+resolvers["instance-lfgid"] = function() local _, _, _, _, _, _, _, _, lfgID = SafeGetInstanceInfo(); return tostring(lfgID or "") end
 
 resolvers.groupType = function()
-    if IsInRaid() then return "raid" end
-    if IsInGroup() then return "party" end
+    if IsInRaid and IsInRaid() then return "raid" end
+    if IsInGroup and IsInGroup() then return "party" end
     return "solo"
 end
 resolvers["group-type"] = resolvers.groupType
 
 resolvers.groupSize = function()
-    if IsInRaid() then return GetNumGroupMembers() end
-    if IsInGroup() then return GetNumGroupMembers() end
-    return 1
+    local n = 1
+    if GetNumGroupMembers then
+        n = GetNumGroupMembers()
+        if n <= 0 then n = 1 end
+    end
+    return n
 end
 resolvers["group-size"] = function(ctx) return tostring(ctx.groupSize) end
 resolvers["party-size"] = resolvers["group-size"]
 
-resolvers["is-raid"] = function() return IsInRaid() and "true" or "false" end
-resolvers["is-party"] = function() return (IsInGroup() and not IsInRaid()) and "true" or "false" end
+resolvers["is-raid"] = function() return (IsInRaid and IsInRaid()) and "true" or "false" end
+resolvers["is-party"] = function() return ((IsInGroup and IsInGroup()) and not (IsInRaid and IsInRaid())) and "true" or "false" end
 
 -- Time
 resolvers.time = function() return date("%H:%M") end

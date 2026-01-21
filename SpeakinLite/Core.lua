@@ -1182,8 +1182,14 @@ local PACK_PREFIXES = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
 -- after the initial addon loading phase. Packs must be enabled via the
 -- AddOns menu at character select, then /reload to take effect.
 local function Addons_Load(name)
-  -- Intentionally empty - LoadAddOn causes taint in modern WoW
-  -- Users must enable packs via AddOns menu and /reload
+  if InCombatLockdown and InCombatLockdown() then return end 
+  local loaded, reason
+  if C_AddOns and C_AddOns.LoadAddOn then
+    loaded, reason = C_AddOns.LoadAddOn(name)
+  elseif LoadAddOn then
+    loaded, reason = LoadAddOn(name)
+  end
+  return loaded, reason
 end
 
 local function Addons_GetNum()
@@ -1660,7 +1666,13 @@ function addon:HandleEvent(eventName, ...)
   if eventName == "ACHIEVEMENT_EARNED" then
     local achievementID = ...
     if achievementID then
-      local achievementID, name, points, completed, month, day, year, description, flags, icon, rewardText = GetAchievementInfo(achievementID)
+      local name, points
+      if GetAchievementInfo then
+         local _, achName, achPoints = GetAchievementInfo(achievementID)
+         name = achName
+         points = achPoints
+      end
+      
       local extraData = {
         achievement = name or ("Achievement #" .. tostring(achievementID)),
         achievementID = tostring(achievementID),
@@ -1680,9 +1692,10 @@ function addon:HandleEvent(eventName, ...)
   -- Player level up event
   if eventName == "PLAYER_LEVEL_UP" then
     local newLevel = ...
+    local currentLevel = newLevel or (UnitLevel and UnitLevel("player")) or 1
     local extraData = {
-      level = tostring(newLevel or UnitLevel("player")),
-      newLevel = tostring(newLevel or UnitLevel("player")),
+      level = tostring(currentLevel),
+      newLevel = tostring(currentLevel),
     }
     local ctx = addon:MakeContext(nil, extraData)
     
@@ -1714,32 +1727,25 @@ function addon:HandleEvent(eventName, ...)
       wipe(eventInfo)
     end
 
-    -- Populate only the indices we actually use from CombatLogGetCurrentEventInfo
-    local _
-    local params = {CombatLogGetCurrentEventInfo()}
-    eventInfo[2] = params[2]    -- subevent
-    eventInfo[4] = params[4]    -- sourceGUID
-    eventInfo[9] = params[9]    -- destName
+    -- Use select to grab params without table allocation (11.0/12.0 safe)
+    -- CombatLogGetCurrentEventInfo returns: timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, ...
+    local _, subevent, _, sourceGUID, _, _, _, _, destName = CombatLogGetCurrentEventInfo()
     
-    -- Spell/Damage params differ by subevent, extract carefully
-    if params[2] == "SWING_DAMAGE" then
-        eventInfo[12] = params[12]
-        eventInfo[18] = params[18]
-    elseif params[2] == "SPELL_DAMAGE" or params[2] == "SPELL_PERIODIC_DAMAGE" or params[2] == "RANGE_DAMAGE" then
-        eventInfo[12] = params[12] -- spellID
-        eventInfo[13] = params[13] -- spellName
-        eventInfo[15] = params[15] -- amount
-        eventInfo[21] = params[21] -- critical
-    elseif params[2] == "SWING_MISSED" then
-        eventInfo[12] = params[12] -- missType
-    elseif params[2] == "SPELL_MISSED" or params[2] == "RANGE_MISSED" then
-        eventInfo[12] = params[12] -- spellID
-        eventInfo[13] = params[13] -- spellName
-        eventInfo[15] = params[15] -- missType
-    elseif params[2] == "SPELL_INTERRUPT" then
-        eventInfo[12] = params[12]
-        eventInfo[13] = params[13]
-        eventInfo[16] = params[16] -- extraSpellName
+    eventInfo[2] = subevent
+    eventInfo[4] = sourceGUID
+    eventInfo[9] = destName
+
+    -- Extract payload args based on subevent
+    if subevent == "SWING_DAMAGE" then
+        eventInfo[12], _, _, _, _, _, eventInfo[18] = select(12, CombatLogGetCurrentEventInfo())
+    elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
+        eventInfo[12], eventInfo[13], _, eventInfo[15], _, _, _, _, _, eventInfo[21] = select(12, CombatLogGetCurrentEventInfo())
+    elseif subevent == "SWING_MISSED" then
+        eventInfo[12] = select(12, CombatLogGetCurrentEventInfo())
+    elseif subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
+        eventInfo[12], eventInfo[13], _, eventInfo[15] = select(12, CombatLogGetCurrentEventInfo())
+    elseif subevent == "SPELL_INTERRUPT" then
+        eventInfo[12], eventInfo[13], _, _, eventInfo[16] = select(12, CombatLogGetCurrentEventInfo())
     end
 
     local subevent = eventInfo[2]
