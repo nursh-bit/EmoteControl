@@ -53,6 +53,49 @@ end
 local frame = CreateFrame("Frame")
 local loadStart = GetTime()
 
+-- Event registration helpers to avoid taint in combat
+local function SafeRegisterEvent(eventName)
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+    addon._pendingEventRegister = addon._pendingEventRegister or {}
+    addon._pendingEventRegister[eventName] = true
+    addon._pendingEventUnregister = addon._pendingEventUnregister or {}
+    addon._pendingEventUnregister[eventName] = nil
+    addon._rebuildAfterCombat = true
+    return
+  end
+  pcall(frame.RegisterEvent, frame, eventName)
+end
+
+local function SafeUnregisterEvent(eventName)
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+    addon._pendingEventUnregister = addon._pendingEventUnregister or {}
+    addon._pendingEventUnregister[eventName] = true
+    addon._pendingEventRegister = addon._pendingEventRegister or {}
+    addon._pendingEventRegister[eventName] = nil
+    addon._rebuildAfterCombat = true
+    return
+  end
+  pcall(frame.UnregisterEvent, frame, eventName)
+end
+
+local function FlushPendingEventChanges()
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then return end
+  local toUnreg = addon._pendingEventUnregister
+  if type(toUnreg) == "table" then
+    for eventName in pairs(toUnreg) do
+      pcall(frame.UnregisterEvent, frame, eventName)
+    end
+  end
+  local toReg = addon._pendingEventRegister
+  if type(toReg) == "table" then
+    for eventName in pairs(toReg) do
+      pcall(frame.RegisterEvent, frame, eventName)
+    end
+  end
+  addon._pendingEventRegister = nil
+  addon._pendingEventUnregister = nil
+end
+
 -- SavedVariables (initialized on PLAYER_LOGIN)
 local db
 addon.db = nil
@@ -1714,18 +1757,18 @@ function addon:RebuildAndRegister()
   
   for eventName in pairs(addon._registeredEvents) do
     if not (addon.EventsToRegister and addon.EventsToRegister[eventName]) and not keep[eventName] then
-      frame:UnregisterEvent(eventName)
+      SafeUnregisterEvent(eventName)
       addon._registeredEvents[eventName] = nil
     end
   end
   
   for eventName in pairs(addon.EventsToRegister or {}) do
-    frame:RegisterEvent(eventName)
+    SafeRegisterEvent(eventName)
     addon._registeredEvents[eventName] = true
   end
   
   for eventName in pairs(keep) do
-    frame:RegisterEvent(eventName)
+    SafeRegisterEvent(eventName)
     addon._registeredEvents[eventName] = true
   end
 end
@@ -1733,6 +1776,7 @@ end
 function addon:HandleEvent(eventName, ...)
   if eventName == "PLAYER_REGEN_ENABLED" and addon._rebuildAfterCombat then
     addon._rebuildAfterCombat = nil
+    FlushPendingEventChanges()
     addon:RebuildAndRegister()
     return
   end
@@ -2471,16 +2515,16 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
 end)
 
 -- Register core events
-frame:RegisterEvent("PLAYER_LOGIN")
-frame:RegisterEvent("PLAYER_DEAD")
-frame:RegisterEvent("PLAYER_ALIVE")
-frame:RegisterEvent("RESURRECT_REQUEST")
-frame:RegisterEvent("GROUP_JOINED")
-frame:RegisterEvent("GROUP_LEFT")
-frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("MAIL_SHOW")
-frame:RegisterEvent("BANKFRAME_OPENED")
-frame:RegisterEvent("MERCHANT_SHOW")
-frame:RegisterEvent("TAXIMAP_OPENED")
-frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+SafeRegisterEvent("PLAYER_LOGIN")
+SafeRegisterEvent("PLAYER_DEAD")
+SafeRegisterEvent("PLAYER_ALIVE")
+SafeRegisterEvent("RESURRECT_REQUEST")
+SafeRegisterEvent("GROUP_JOINED")
+SafeRegisterEvent("GROUP_LEFT")
+SafeRegisterEvent("ZONE_CHANGED_NEW_AREA")
+SafeRegisterEvent("PLAYER_ENTERING_WORLD")
+SafeRegisterEvent("MAIL_SHOW")
+SafeRegisterEvent("BANKFRAME_OPENED")
+SafeRegisterEvent("MERCHANT_SHOW")
+SafeRegisterEvent("TAXIMAP_OPENED")
+SafeRegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
