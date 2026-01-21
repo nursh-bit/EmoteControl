@@ -97,19 +97,17 @@ local function ScheduleRebuildAfterCombat()
 end
 
 local function SecureRegisterEvent(targetFrame, eventName)
-  if type(securecallfunction) == "function" then
-    securecallfunction(targetFrame.RegisterEvent, targetFrame, eventName)
-  else
-    targetFrame:RegisterEvent(eventName)
-  end
+  if not targetFrame or not eventName then return end
+  if type(targetFrame.RegisterEvent) ~= "function" then return end
+  -- Avoid securecallfunction to reduce taint propagation
+  pcall(targetFrame.RegisterEvent, targetFrame, eventName)
 end
 
 local function SecureUnregisterEvent(targetFrame, eventName)
-  if type(securecallfunction) == "function" then
-    securecallfunction(targetFrame.UnregisterEvent, targetFrame, eventName)
-  else
-    targetFrame:UnregisterEvent(eventName)
-  end
+  if not targetFrame or not eventName then return end
+  if type(targetFrame.UnregisterEvent) ~= "function" then return end
+  -- Avoid securecallfunction to reduce taint propagation
+  pcall(targetFrame.UnregisterEvent, targetFrame, eventName)
 end
 
 local function QueueRebuildAndRegister()
@@ -2170,13 +2168,31 @@ local function HandleSlash(msg)
   PrintHelp()
 end
 
-SLASH_EMOTECONTROL1 = "/emotecontrol"
-SLASH_EMOTECONTROL2 = "/ec"
-SlashCmdList["EMOTECONTROL"] = HandleSlash
+local function RegisterSlashCommands()
+  -- Mitigation: avoid touching globals if already registered or explicitly disabled.
+  if db and db.disableSlashCommands == true then return end
+  if type(SlashCmdList) ~= "table" then return end
 
-SLASH_SPEAKINLITE1 = "/sl"
-SLASH_SPEAKINLITE2 = "/speakinlite"
-SlashCmdList["SPEAKINLITE"] = HandleSlash
+  if rawget(_G, "SLASH_EMOTECONTROL1") == nil then
+    rawset(_G, "SLASH_EMOTECONTROL1", "/emotecontrol")
+  end
+  if rawget(_G, "SLASH_EMOTECONTROL2") == nil then
+    rawset(_G, "SLASH_EMOTECONTROL2", "/ec")
+  end
+  if type(SlashCmdList["EMOTECONTROL"]) ~= "function" then
+    SlashCmdList["EMOTECONTROL"] = HandleSlash
+  end
+
+  if rawget(_G, "SLASH_SPEAKINLITE1") == nil then
+    rawset(_G, "SLASH_SPEAKINLITE1", "/sl")
+  end
+  if rawget(_G, "SLASH_SPEAKINLITE2") == nil then
+    rawset(_G, "SLASH_SPEAKINLITE2", "/speakinlite")
+  end
+  if type(SlashCmdList["SPEAKINLITE"]) ~= "function" then
+    SlashCmdList["SPEAKINLITE"] = HandleSlash
+  end
+end
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then
@@ -2204,6 +2220,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SetDefault(db, "onboardingShown", false)
     SetDefault(db, "minimap", { hide = false, angle = 225 })
     SetDefault(db, "version", addon.DB_VERSION)
+    SetDefault(db, "disableSlashCommands", false)
 
     if type(db.packEnabled) ~= "table" then db.packEnabled = {} end
     if type(db.categoriesEnabled) ~= "table" then
@@ -2290,6 +2307,9 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       addon:CreatePacksSettingsPanel()
     end
 
+    -- Register slash commands late to reduce taint exposure at login.
+    RegisterSlashCommands()
+
     if db.onboardingShown ~= true then
       db.onboardingShown = true
       addon:ShowOnboarding()
@@ -2305,8 +2325,4 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
 end)
 
 -- Register core events
-if type(securecallfunction) == "function" then
-  securecallfunction(RegisterCoreEvents)
-else
-  RegisterCoreEvents()
-end
+RegisterCoreEvents()
