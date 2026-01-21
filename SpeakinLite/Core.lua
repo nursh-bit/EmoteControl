@@ -1377,15 +1377,12 @@ end
 
 local PACK_PREFIXES = {"SpeakinLite_Pack_", "EmoteControl_Pack_"}
 
+-- Note: LoadAddOn is completely protected in modern WoW and cannot be called
+-- after the initial addon loading phase. Packs must be enabled via the
+-- AddOns menu at character select, then /reload to take effect.
 local function Addons_Load(name)
-  if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
-    pcall(C_AddOns.LoadAddOn, name)
-    return
-  end
-  local legacyLoadAddOn = rawget(_G, "LoadAddOn")
-  if type(legacyLoadAddOn) == "function" then
-    pcall(legacyLoadAddOn, name)
-  end
+  -- Intentionally empty - LoadAddOn causes taint in modern WoW
+  -- Users must enable packs via AddOns menu and /reload
 end
 
 local function Addons_GetNum()
@@ -1519,17 +1516,9 @@ function addon:LoadPacksForPlayer()
     return false
   end
 
-  -- Only attempt LoadAddOn during PLAYER_LOGIN before combat starts
-  local inCombat = (type(InCombatLockdown) == "function") and InCombatLockdown()
-  if not inCombat and type(addon.GetAvailablePackAddOns) == "function" then
-    local available = addon:GetAvailablePackAddOns()
-    for packId, info in pairs(available or {}) do
-      if IsPackExplicitlyEnabled(packId) and info and not info.loaded and info.addonName then
-        -- Silently attempt to load (may fail if after initial load phase)
-        Addons_Load(info.addonName)
-      end
-    end
-  end
+  -- Note: We cannot call LoadAddOn after the initial load phase in modern WoW.
+  -- Packs that aren't loaded yet will need a /reload after being enabled.
+  -- The pack will be loaded on next login/reload if enabled in the AddOns menu.
 end
 
 local function NormalizePackIdFromAddonName(name)
