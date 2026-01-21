@@ -12,6 +12,7 @@ local resolvers = {}
 
 -- Helper to get unit name/realm
 local function GetUnitNameFull(unit)
+  if not UnitName then return nil end
   local name, realm = UnitName(unit)
   if not name then return nil end
   if realm and realm ~= "" then
@@ -21,15 +22,15 @@ local function GetUnitNameFull(unit)
 end
 
 -- Player Basic
-resolvers.player = function() return UnitName("player") end
+resolvers.player = function() return (UnitName and UnitName("player")) or "" end
 resolvers["player-full"] = function() return GetUnitNameFull("player") end
-resolvers.level = function() return tostring(UnitLevel("player") or 1) end
-resolvers.race = function() return UnitRace("player") or "" end
-resolvers.class = function() return UnitClass("player") or "" end
+resolvers.level = function() return tostring((UnitLevel and UnitLevel("player")) or 1) end
+resolvers.race = function() return (UnitRace and UnitRace("player")) or "" end
+resolvers.class = function() return (UnitClass and UnitClass("player")) or "" end
 resolvers.className = resolvers.class
 resolvers["class-name"] = resolvers.class
-resolvers.faction = function() return UnitFactionGroup("player") or "" end
-resolvers.realm = function() return GetRealmName() or "" end
+resolvers.faction = function() return (UnitFactionGroup and UnitFactionGroup("player")) or "" end
+resolvers.realm = function() return (GetRealmName and GetRealmName()) or "" end
 resolvers.guild = function() return (GetGuildInfo and GetGuildInfo("player")) or "" end
 
 -- Player Detailed
@@ -84,26 +85,28 @@ end
 
 
 -- Health/Power
-resolvers.health = function() return tostring(UnitHealth("player") or 0) end
-resolvers.healthmax = function() return tostring(UnitHealthMax("player") or 1) end
+resolvers.health = function() return tostring((UnitHealth and UnitHealth("player")) or 0) end
+resolvers.healthmax = function() return tostring((UnitHealthMax and UnitHealthMax("player")) or 1) end
 resolvers["health%"] = function() 
-    local h, m = UnitHealth("player"), UnitHealthMax("player")
+    local h = (UnitHealth and UnitHealth("player")) or 0
+    local m = (UnitHealthMax and UnitHealthMax("player")) or 1
     if not m or m == 0 then return "0" end
     return tostring(math.floor((h/m)*100)) 
 end
 resolvers.healthPct = resolvers["health%"] -- alias
 
-resolvers.power = function() return tostring(UnitPower("player") or 0) end
-resolvers.powermax = function() return tostring(UnitPowerMax("player") or 1) end
+resolvers.power = function() return tostring((UnitPower and UnitPower("player")) or 0) end
+resolvers.powermax = function() return tostring((UnitPowerMax and UnitPowerMax("player")) or 1) end
 resolvers["power%"] = function() 
-    local p, m = UnitPower("player"), UnitPowerMax("player")
+    local p = (UnitPower and UnitPower("player")) or 0
+    local m = (UnitPowerMax and UnitPowerMax("player")) or 1
     if not m or m == 0 then return "0" end
     return tostring(math.floor((p/m)*100)) 
 end
 resolvers.powerPct = resolvers["power%"]
 
 resolvers.powername = function()
-    local powerType = UnitPowerType("player")
+    local powerType = (UnitPowerType and UnitPowerType("player")) or 0
     if powerType == 0 then return "Mana" end
     if powerType == 1 then return "Rage" end
     if powerType == 2 then return "Focus" end
@@ -111,7 +114,7 @@ resolvers.powername = function()
     if powerType == 6 then return "Runic Power" end
     return "Power"
 end
-resolvers.combo = function() return tostring(UnitPower("player", 4) or 0) end
+resolvers.combo = function() return tostring((UnitPower and UnitPower("player", 4)) or 0) end
 
 -- Target
 resolvers.target = function() return (UnitName and UnitName("target")) or "nobody" end
@@ -178,9 +181,9 @@ resolvers["is-raid"] = function() return (IsInRaid and IsInRaid()) and "true" or
 resolvers["is-party"] = function() return ((IsInGroup and IsInGroup()) and not (IsInRaid and IsInRaid())) and "true" or "false" end
 
 -- Time
-resolvers.time = function() return date("%H:%M") end
-resolvers.date = function() return date("%Y-%m-%d") end
-resolvers.weekday = function() return date("%A") end
+resolvers.time = function() return (date and date("%H:%M")) or "" end
+resolvers.date = function() return (date and date("%Y-%m-%d")) or "" end
+resolvers.weekday = function() return (date and date("%A")) or "" end
 
 -- Spell (relies on _spellID being set in ctx)
 resolvers.spell = function(ctx)
@@ -196,7 +199,10 @@ local function GetAffixes()
     if C_MythicPlus and C_MythicPlus.GetCurrentAffixes then
          local affixes = C_MythicPlus.GetCurrentAffixes() or {}
          for _, aff in ipairs(affixes) do
-            if aff.name then table.insert(names, aff.name) end
+            if type(aff) == "table" and aff.name then 
+                ---@diagnostic disable-next-line: undefined-field
+                table.insert(names, aff.name) 
+            end
          end
     end
     return names
