@@ -53,6 +53,16 @@ end
 local frame = CreateFrame("Frame")
 local loadStart = GetTime()
 
+-- Taint diagnostics (for debugging - no debugstack to avoid taint propagation)
+local taintFrame = CreateFrame("Frame")
+taintFrame:RegisterEvent("ADDON_ACTION_BLOCKED")
+taintFrame:RegisterEvent("ADDON_ACTION_FORBIDDEN")
+taintFrame:SetScript("OnEvent", function(_, event, addonName, funcName)
+  if addonName == "SpeakinLite" or addonName == ADDON_NAME then
+    print(string.format("|cffff0000%s|r addon=%s func=%s", event, tostring(addonName), tostring(funcName)))
+  end
+end)
+
 -- Event registration helpers with combat lockdown protection
 -- During initial load (main chunk), register directly since we're never in combat
 -- During runtime (RebuildAndRegister), check combat lockdown
@@ -2494,17 +2504,17 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
   addon:HandleEvent(eventName, ...)
 end)
 
--- Register core events
-SafeRegisterEvent("PLAYER_LOGIN")
-SafeRegisterEvent("PLAYER_DEAD")
-SafeRegisterEvent("PLAYER_ALIVE")
-SafeRegisterEvent("RESURRECT_REQUEST")
-SafeRegisterEvent("GROUP_JOINED")
-SafeRegisterEvent("GROUP_LEFT")
-SafeRegisterEvent("ZONE_CHANGED_NEW_AREA")
-SafeRegisterEvent("PLAYER_ENTERING_WORLD")
-SafeRegisterEvent("MAIL_SHOW")
-SafeRegisterEvent("BANKFRAME_OPENED")
-SafeRegisterEvent("MERCHANT_SHOW")
-SafeRegisterEvent("TAXIMAP_OPENED")
-SafeRegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+-- Register core events (direct calls at load time - never in combat during addon load)
+frame:RegisterEvent("PLAYER_LOGIN")
+frame:RegisterEvent("PLAYER_DEAD")
+frame:RegisterEvent("PLAYER_ALIVE")
+frame:RegisterEvent("RESURRECT_REQUEST")
+frame:RegisterEvent("GROUP_JOINED")
+frame:RegisterEvent("GROUP_LEFT")
+frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+frame:RegisterEvent("MAIL_SHOW")
+frame:RegisterEvent("BANKFRAME_OPENED")
+frame:RegisterEvent("MERCHANT_SHOW")
+frame:RegisterEvent("TAXIMAP_OPENED")
+frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
