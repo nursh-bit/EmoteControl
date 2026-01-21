@@ -250,6 +250,7 @@ local function JsonDecode(str)
       end
       local key, err = parseString()
       if err then return nil, err end
+      if key == nil then return nil, "Nil key in object" end
       skip()
       if str:sub(i, i) ~= ":" then return nil, "Expected :" end
       i = i + 1

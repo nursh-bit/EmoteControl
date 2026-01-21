@@ -1167,7 +1167,7 @@ function addon:MatchesTrigger(trig, eventName, args)
     elseif type(cond.specID) == "table" then
       local ok = false
       for _, v in ipairs(cond.specID) do
-        if specID == v then ok = true break end
+        if specID == v then ok = true; break end
       end
       if not ok then return false end
     end
@@ -1262,7 +1262,7 @@ function addon:MatchesTrigger(trig, eventName, args)
       local ok = false
       for _, v in ipairs(cond.quality) do
         local want = tonumber(v) or v
-        if want == args.quality then ok = true break end
+        if want == args.quality then ok = true; break end
       end
       if not ok then return false end
     end
@@ -1498,7 +1498,7 @@ function addon:LoadPacksForPlayer()
     end
   end
 
-  -- Also load any packs explicitly enabled by the user
+  -- Also load any packs explicitly enabled by the user (only safe at login, before combat)
   local function IsPackExplicitlyEnabled(packId)
     if type(packId) ~= "string" or packId == "" then return false end
     local theDb = addon:GetDB() or {}
@@ -1519,10 +1519,13 @@ function addon:LoadPacksForPlayer()
     return false
   end
 
-  if type(addon.GetAvailablePackAddOns) == "function" then
+  -- Only attempt LoadAddOn during PLAYER_LOGIN before combat starts
+  local inCombat = (type(InCombatLockdown) == "function") and InCombatLockdown()
+  if not inCombat and type(addon.GetAvailablePackAddOns) == "function" then
     local available = addon:GetAvailablePackAddOns()
     for packId, info in pairs(available or {}) do
-      if IsPackExplicitlyEnabled(packId) and info and not info.loaded then
+      if IsPackExplicitlyEnabled(packId) and info and not info.loaded and info.addonName then
+        -- Silently attempt to load (may fail if after initial load phase)
         Addons_Load(info.addonName)
       end
     end
@@ -1666,14 +1669,12 @@ function addon:SetPackEnabled(packId, enabled, addonName)
   EmoteControlDB = theDb
   SpeakinLiteDB = EmoteControlDB
 
+  -- Note: LoadAddOn is protected in modern WoW and can cause taint.
+  -- Packs marked LoadOnDemand will load on the next /reload.
   if enabled and addonName then
-    if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
-      pcall(C_AddOns.LoadAddOn, addonName)
-    else
-      local legacyLoadAddOn = rawget(_G, "LoadAddOn")
-      if type(legacyLoadAddOn) == "function" then
-        pcall(legacyLoadAddOn, addonName)
-      end
+    local isLoaded = Addons_IsLoaded(addonName)
+    if not isLoaded then
+      addon:Print("Pack enabled. Type /reload to load it.")
     end
   end
 
