@@ -53,20 +53,13 @@ end
 local frame = CreateFrame("Frame")
 local loadStart = GetTime()
 
--- Taint diagnostics: log blocked/forbidden actions
-local taintFrame = CreateFrame("Frame")
-taintFrame:RegisterEvent("ADDON_ACTION_BLOCKED")
-taintFrame:RegisterEvent("ADDON_ACTION_FORBIDDEN")
-taintFrame:SetScript("OnEvent", function(_, event, addonName, funcName)
-  DEFAULT_CHAT_FRAME:AddMessage(
-    string.format("|cffff0000%s|r addon=%s func=%s", event, tostring(addonName), tostring(funcName))
-  )
-  DEFAULT_CHAT_FRAME:AddMessage(debugstack(2, 5, 5))
-end)
+-- Event registration helpers with combat lockdown protection
+-- During initial load (main chunk), register directly since we're never in combat
+-- During runtime (RebuildAndRegister), check combat lockdown
+local addonFullyLoaded = false
 
--- Event registration helpers to avoid taint in combat
 local function SafeRegisterEvent(eventName)
-  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+  if addonFullyLoaded and InCombatLockdown and InCombatLockdown() then
     addon._rebuildAfterCombat = true
     return
   end
@@ -74,7 +67,7 @@ local function SafeRegisterEvent(eventName)
 end
 
 local function SafeUnregisterEvent(eventName)
-  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+  if addonFullyLoaded and InCombatLockdown and InCombatLockdown() then
     addon._rebuildAfterCombat = true
     return
   end
@@ -2492,6 +2485,9 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
 
     addon._loadTime = GetTime() - loadStart
     addon:Print(L.LOADED)
+    
+    -- Mark addon as fully loaded so SafeRegisterEvent will check combat lockdown
+    addonFullyLoaded = true
     return
   end
 
