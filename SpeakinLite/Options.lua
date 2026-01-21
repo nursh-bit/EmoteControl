@@ -62,12 +62,18 @@ local function MakeDropdown(parent, name, anchor, label, width)
 
   local dd = CreateFrame("Frame", name, parent, "UIDropDownMenuTemplate")
   dd:SetPoint("TOPLEFT", fs, "BOTTOMLEFT", -16, -2)
-  UIDropDownMenu_SetWidth(dd, width or 180)
+  if type(UIDropDownMenu_SetWidth) == "function" then
+    UIDropDownMenu_SetWidth(dd, width or 180)
+  end
   return dd, fs
 end
 
 local function SetDropdownText(dd, text)
-  UIDropDownMenu_SetText(dd, text)
+  if type(UIDropDownMenu_SetText) == "function" then
+    UIDropDownMenu_SetText(dd, text)
+  elseif dd and dd.Text and dd.Text.SetText then
+    dd.Text:SetText(text)
+  end
 end
 
 local function BuildMainPanel()
@@ -170,7 +176,71 @@ local function BuildMainPanel()
     cbCatFlavor:SetChecked(theDb.categoriesEnabled.flavor ~= false)
   end
 
-  panel:SetScript("OnShow", Refresh)
+  local dropdownsInitialized = false
+  local function InitDropdowns()
+    if dropdownsInitialized then return end
+    if type(InCombatLockdown) == "function" and InCombatLockdown() then
+      return
+    end
+    if type(UIDropDownMenu_Initialize) ~= "function" or type(UIDropDownMenu_CreateInfo) ~= "function" or type(UIDropDownMenu_AddButton) ~= "function" then
+      return
+    end
+
+    dropdownsInitialized = true
+
+    UIDropDownMenu_Initialize(ddChannel, function(self, level)
+      local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+
+      local function Add(text, value)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = text
+        info.value = value
+        info.func = function()
+          theDb.channel = value
+          SetDropdownText(ddChannel, value)
+        end
+        UIDropDownMenu_AddButton(info)
+      end
+
+      Add("Self", "SELF")
+      Add("Auto", "AUTO")
+      Add("Party", "PARTY")
+      Add("Raid", "RAID")
+      Add("Instance", "INSTANCE")
+      Add("Say", "SAY")
+      Add("Yell", "YELL")
+      Add("Emote", "EMOTE")
+    end)
+
+    UIDropDownMenu_Initialize(ddRotation, function(self, level)
+      local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+
+      local function Add(text, value, hint)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = text
+        info.value = value
+        info.func = function()
+          theDb.rotationProtection = value
+          SetDropdownText(ddRotation, value)
+        end
+        if hint then
+          info.tooltipTitle = text
+          info.tooltipText = hint
+        end
+        UIDropDownMenu_AddButton(info)
+      end
+
+      Add("Off", "OFF", "No extra floor beyond per-trigger cooldown.")
+      Add("Low", "LOW", "More quiet. Forces spell triggers to at least 12s cooldown.")
+      Add("Medium", "MEDIUM", "Default. Forces spell triggers to at least 6s cooldown.")
+      Add("High", "HIGH", "More chatty. Forces spell triggers to at least 2s cooldown.")
+    end)
+  end
+
+  panel:SetScript("OnShow", function()
+    InitDropdowns()
+    Refresh()
+  end)
 
   cbEnabled:SetScript("OnClick", function(self)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
@@ -264,54 +334,6 @@ local function BuildMainPanel()
     local v = addon:ClampNumber(tonumber(value) or 2, 1, 5)
     theDb.adaptiveCooldownMax = v
     _G["EmoteControl_SL_AdaptiveMaxText"]:SetText("Adaptive cooldown max multiplier: " .. v)
-  end)
-
-  UIDropDownMenu_Initialize(ddChannel, function(self, level)
-    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
-
-    local function Add(text, value)
-      local info = UIDropDownMenu_CreateInfo()
-      info.text = text
-      info.value = value
-      info.func = function()
-        theDb.channel = value
-        SetDropdownText(ddChannel, value)
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-
-    Add("Self", "SELF")
-    Add("Auto", "AUTO")
-    Add("Party", "PARTY")
-    Add("Raid", "RAID")
-    Add("Instance", "INSTANCE")
-    Add("Say", "SAY")
-    Add("Yell", "YELL")
-    Add("Emote", "EMOTE")
-  end)
-
-  UIDropDownMenu_Initialize(ddRotation, function(self, level)
-    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
-
-    local function Add(text, value, hint)
-      local info = UIDropDownMenu_CreateInfo()
-      info.text = text
-      info.value = value
-      info.func = function()
-        theDb.rotationProtection = value
-        SetDropdownText(ddRotation, value)
-      end
-      if hint then
-        info.tooltipTitle = text
-        info.tooltipText = hint
-      end
-      UIDropDownMenu_AddButton(info)
-    end
-
-    Add("Off", "OFF", "No extra floor beyond per-trigger cooldown.")
-    Add("Low", "LOW", "More quiet. Forces spell triggers to at least 12s cooldown.")
-    Add("Medium", "MEDIUM", "Default. Forces spell triggers to at least 6s cooldown.")
-    Add("High", "HIGH", "More chatty. Forces spell triggers to at least 2s cooldown.")
   end)
 
   btnPacks:SetScript("OnClick", function()
