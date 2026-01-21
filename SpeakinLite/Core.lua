@@ -64,21 +64,35 @@ taintFrame:SetScript("OnEvent", function(_, event, addonName, funcName)
 end)
 
 -- Event registration helpers with combat lockdown protection
--- During initial load (main chunk), register directly since we're never in combat
--- During runtime (RebuildAndRegister), check combat lockdown
-local addonFullyLoaded = false
+local function ScheduleRebuildAfterCombat()
+  if addon._rebuildTicker or not (C_Timer and C_Timer.NewTicker) then return end
+  addon._rebuildTicker = C_Timer.NewTicker(1, function()
+    if not (InCombatLockdown and InCombatLockdown()) then
+      addon._rebuildTicker:Cancel()
+      addon._rebuildTicker = nil
+      if addon._rebuildAfterCombat then
+        addon._rebuildAfterCombat = nil
+        if type(addon.RebuildAndRegister) == "function" then
+          addon:RebuildAndRegister()
+        end
+      end
+    end
+  end)
+end
 
 local function SafeRegisterEvent(eventName)
-  if addonFullyLoaded and InCombatLockdown and InCombatLockdown() then
+  if InCombatLockdown and InCombatLockdown() then
     addon._rebuildAfterCombat = true
+    ScheduleRebuildAfterCombat()
     return
   end
   frame:RegisterEvent(eventName)
 end
 
 local function SafeUnregisterEvent(eventName)
-  if addonFullyLoaded and InCombatLockdown and InCombatLockdown() then
+  if InCombatLockdown and InCombatLockdown() then
     addon._rebuildAfterCombat = true
+    ScheduleRebuildAfterCombat()
     return
   end
   frame:UnregisterEvent(eventName)
@@ -2529,8 +2543,6 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     addon._loadTime = GetTime() - loadStart
     addon:Print(L.LOADED)
     
-    -- Mark addon as fully loaded so SafeRegisterEvent will check combat lockdown
-    addonFullyLoaded = true
     return
   end
 
