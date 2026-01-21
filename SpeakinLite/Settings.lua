@@ -86,6 +86,12 @@ end
 
 -- Public API: open the Settings panel.
 function addon:OpenSettings()
+  -- Check for combat lockdown first
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+    addon:Print("Cannot open settings while in combat.")
+    return false
+  end
+
   if not (Settings and type(Settings.OpenToCategory) == "function") then
     addon:Print("The Settings API is not available in this client.")
     return false

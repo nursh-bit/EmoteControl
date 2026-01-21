@@ -459,14 +459,9 @@ local function TryLoadInterfaceOptions()
     return true
   end
 
-  if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
-    pcall(C_AddOns.LoadAddOn, "Blizzard_InterfaceOptions")
-  end
-  local legacyLoadAddOn = rawget(_G, "LoadAddOn")
-  if type(legacyLoadAddOn) == "function" then
-    pcall(legacyLoadAddOn, "Blizzard_InterfaceOptions")
-  end
-
+  -- Note: LoadAddOn is protected in modern WoW and causes taint
+  -- If the legacy interface options aren't available, we just skip them
+  
   legacyAddCategory = rawget(_G, "InterfaceOptions_AddCategory")
   legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
   return (legacyAddCategory and legacyOpenToCategory) and true or false
@@ -488,8 +483,8 @@ if interfaceOptionsReady then
   legacyPanel:SetScript("OnShow", function()
     local openFn = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
     if type(openFn) == "function" then
-      openFn(mainPanel)
-      openFn(mainPanel)
+      pcall(openFn, mainPanel)
+      pcall(openFn, mainPanel)
     end
   end)
   if legacyAddCategory then
@@ -498,6 +493,12 @@ if interfaceOptionsReady then
 end
 
 function addon:OpenOptions()
+  -- Check for combat lockdown first - opening settings in combat can cause taint
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+    addon:Print("Cannot open options while in combat. Try again after combat ends.")
+    return
+  end
+
   -- Retail 10.0+ uses the Settings UI; prefer it when available.
   if Settings and type(Settings.OpenToCategory) == "function" and type(addon.OpenSettings) == "function" then
     local opened = addon:OpenSettings()
@@ -505,11 +506,11 @@ function addon:OpenOptions()
     -- If Settings panel failed, fall through to legacy UI
   end
 
-  -- Try legacy Interface Options
+  -- Try legacy Interface Options (wrapped in pcall to avoid taint)
   local legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
   if interfaceOptionsReady and type(legacyOpenToCategory) == "function" then
-    legacyOpenToCategory(mainPanel)
-    legacyOpenToCategory(mainPanel)
+    pcall(legacyOpenToCategory, mainPanel)
+    pcall(legacyOpenToCategory, mainPanel)
     return
   end
 
@@ -525,6 +526,12 @@ function addon:OpenOptions()
 end
 
 function addon:OpenPacksPanel()
+  -- Check for combat lockdown first
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then
+    addon:Print("Cannot open options while in combat. Try again after combat ends.")
+    return
+  end
+
   if Settings and type(Settings.OpenToCategory) == "function" then
     local function TryOpen(target)
       if target == nil then return false end
@@ -548,8 +555,8 @@ function addon:OpenPacksPanel()
 
   local legacyOpenToCategory = rawget(_G, "InterfaceOptionsFrame_OpenToCategory")
   if interfaceOptionsReady and type(legacyOpenToCategory) == "function" then
-    legacyOpenToCategory(packsPanel)
-    legacyOpenToCategory(packsPanel)
+    pcall(legacyOpenToCategory, packsPanel)
+    pcall(legacyOpenToCategory, packsPanel)
     return
   end
 
