@@ -361,6 +361,7 @@ function addon:OpenEditor()
     local channelDD = CreateDropdown(rightPane, "EmoteControlEditorChannelDD", {
       { label = "(use global)", value = "" },
       { label = "Self", value = "SELF" },
+      { label = "Auto", value = "AUTO" },
       { label = "Party", value = "PARTY" },
       { label = "Raid", value = "RAID" },
       { label = "Instance", value = "INSTANCE" },
@@ -452,7 +453,7 @@ function addon:OpenEditor()
     hint:SetPoint("BOTTOMLEFT", reset, "TOPLEFT", 0, 10)
     hint:SetWidth(400)
     hint:SetJustifyH("LEFT")
-    hint:SetText("Tokens: <player> <realm> <faction> <class> <className> <spec> <specID> <role> <level> <ilvl> <race>\n<zone> <subzone> <mapID> <continent> <instance> <instanceName> <instanceDifficulty>\n<target> <target-class> <target-race> <target-level> <target-health> <target-health%> <target-dead>\n<health%> <power%> <combo> <guild> <achievement> <item> <itemlink> <quality>\n<group-size> <is-raid> <is-party> <time> <date> <weekday>\n<pick:a|b|c>  |  <rng:1-100>")
+    hint:SetText("Tokens: <player> <player-full> <realm> <faction> <class> <className> <spec> <specID> <role> <level> <ilvl> <race>\n<zone> <subzone> <mapID> <continent> <instance> <instance-type> <instanceName> <instanceDifficulty> <instance-difficulty-id>\n<instance-mapid> <instance-lfgid> <in-instance>\n<target> <target-full> <target-realm> <target-class> <target-race> <target-level> <target-health> <target-health%> <target-dead>\n<health%> <power%> <combo> <guild> <achievement> <item> <itemlink> <quality>\n<group-size> <party-size> <group-type> <is-raid> <is-party> <affixes> <affix-1> <affix-2> <affix-3> <affix-4>\n<keystone-level> <keystone-mapid> <time> <date> <weekday>\n<pick:a|b|c>  |  <rng:1-100>")
 
     frame:SetScript("OnShow", function()
       BuildList()
