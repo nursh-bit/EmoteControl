@@ -514,7 +514,9 @@ function addon:CreatePacksSettingsPanel()
       end
       if entry.loadable == false then
         local reason = tostring(entry.reason or "")
-        if reason == "DISABLED" then
+        if reason == "DEMAND_LOADED" then
+          label = label .. " (load on demand)"
+        elseif reason == "DISABLED" then
           label = label .. " (disabled in AddOns)"
         elseif reason ~= "" then
           label = label .. " (not loadable: " .. reason .. ")"
