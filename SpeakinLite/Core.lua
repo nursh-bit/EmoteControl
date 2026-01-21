@@ -1497,6 +1497,36 @@ function addon:LoadPacksForPlayer()
       end
     end
   end
+
+  -- Also load any packs explicitly enabled by the user
+  local function IsPackExplicitlyEnabled(packId)
+    if type(packId) ~= "string" or packId == "" then return false end
+    local theDb = addon:GetDB() or {}
+    if theDb.packProfilesEnabled == true then
+      local specId = select(1, addon:GetSpecInfo())
+      if specId and type(theDb.packEnabledBySpec) == "table" then
+        local t = theDb.packEnabledBySpec[specId]
+        if type(t) == "table" then
+          local v = t[packId]
+          if v ~= nil then return v == true end
+        end
+      end
+    end
+    if type(theDb.packEnabled) == "table" then
+      local v = theDb.packEnabled[packId]
+      if v ~= nil then return v == true end
+    end
+    return false
+  end
+
+  if type(addon.GetAvailablePackAddOns) == "function" then
+    local available = addon:GetAvailablePackAddOns()
+    for packId, info in pairs(available or {}) do
+      if IsPackExplicitlyEnabled(packId) and info and not info.loaded then
+        Addons_Load(info.addonName)
+      end
+    end
+  end
 end
 
 local function NormalizePackIdFromAddonName(name)
