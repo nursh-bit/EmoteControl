@@ -110,7 +110,10 @@ local function BuildMainPanel()
   local packProfileHeader = MakeSubTitle(panel, cbLevelUp, "Pack Profiles")
   local cbPackProfiles = MakeCheckbox(panel, "EmoteControl_CB_PackProfiles", packProfileHeader, "Use spec-based pack profiles", "Pack enable states are saved per spec.")
 
-  local setupHeader = MakeSubTitle(panel, cbPackProfiles, "Quick Setup")
+  local miscHeader = MakeSubTitle(panel, cbPackProfiles, "Misc")
+  local cbSlash = MakeCheckbox(panel, "EmoteControl_CB_Slash", miscHeader, "Enable slash commands (/sl, /ec)", "May cause taint warnings in some UI paths. Disable to suppress.")
+
+  local setupHeader = MakeSubTitle(panel, cbSlash, "Quick Setup")
   local btnDefaults = CreateFrame("Button", "EmoteControl_Btn_Defaults", panel, "UIPanelButtonTemplate")
   btnDefaults:SetSize(200, 22)
   btnDefaults:SetPoint("TOPLEFT", setupHeader, "BOTTOMLEFT", 0, -10)
@@ -155,6 +158,7 @@ local function BuildMainPanel()
     cbAchievement:SetChecked(theDb.enableAchievementTriggers ~= false)
     cbLevelUp:SetChecked(theDb.enableLevelUpTriggers ~= false)
     cbPackProfiles:SetChecked(theDb.packProfilesEnabled and true or false)
+    cbSlash:SetChecked(theDb.disableSlashCommands ~= true)
 
     sCooldown:SetValue(addon:ClampNumber(tonumber(theDb.globalCooldown) or 6, 0, 60))
     sMaxPerMin:SetValue(addon:ClampNumber(tonumber(theDb.maxPerMinute) or 12, 0, 60))
@@ -267,6 +271,15 @@ local function BuildMainPanel()
     theDb.packProfilesEnabled = self:GetChecked() and true or false
     if type(addon.RebuildAndRegister) == "function" then
       addon:RebuildAndRegister()
+    end
+  end)
+
+  cbSlash:SetScript("OnClick", function(self)
+    local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
+    local enable = self:GetChecked() and true or false
+    theDb.disableSlashCommands = not enable
+    if enable and type(addon.RegisterSlashCommands) == "function" then
+      addon:RegisterSlashCommands()
     end
   end)
 

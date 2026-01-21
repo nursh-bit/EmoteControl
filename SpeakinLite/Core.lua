@@ -99,15 +99,15 @@ end
 local function SecureRegisterEvent(targetFrame, eventName)
   if not targetFrame or not eventName then return end
   if type(targetFrame.RegisterEvent) ~= "function" then return end
-  -- Avoid securecallfunction to reduce taint propagation
-  pcall(targetFrame.RegisterEvent, targetFrame, eventName)
+  -- Avoid securecallfunction/pcall to reduce taint propagation
+  targetFrame:RegisterEvent(eventName)
 end
 
 local function SecureUnregisterEvent(targetFrame, eventName)
   if not targetFrame or not eventName then return end
   if type(targetFrame.UnregisterEvent) ~= "function" then return end
-  -- Avoid securecallfunction to reduce taint propagation
-  pcall(targetFrame.UnregisterEvent, targetFrame, eventName)
+  -- Avoid securecallfunction/pcall to reduce taint propagation
+  targetFrame:UnregisterEvent(eventName)
 end
 
 local function QueueRebuildAndRegister()
@@ -2171,6 +2171,7 @@ end
 local function RegisterSlashCommands()
   -- Mitigation: avoid touching globals if already registered or explicitly disabled.
   if db and db.disableSlashCommands == true then return end
+  if type(InCombatLockdown) == "function" and InCombatLockdown() then return end
   if type(SlashCmdList) ~= "table" then return end
 
   if rawget(_G, "SLASH_EMOTECONTROL1") == nil then
@@ -2193,6 +2194,7 @@ local function RegisterSlashCommands()
     SlashCmdList["SPEAKINLITE"] = HandleSlash
   end
 end
+addon.RegisterSlashCommands = RegisterSlashCommands
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then
@@ -2220,7 +2222,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SetDefault(db, "onboardingShown", false)
     SetDefault(db, "minimap", { hide = false, angle = 225 })
     SetDefault(db, "version", addon.DB_VERSION)
-    SetDefault(db, "disableSlashCommands", false)
+    SetDefault(db, "disableSlashCommands", true)
 
     if type(db.packEnabled) ~= "table" then db.packEnabled = {} end
     if type(db.categoriesEnabled) ~= "table" then
