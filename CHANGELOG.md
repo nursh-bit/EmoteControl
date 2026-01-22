@@ -1,5 +1,16 @@
 # Emote Control Changelog
 
+## Version 1.0.0 - EmoteControl Rebrand
+
+### Highlights
+- Rebranded the addon from SpeakinLite to EmoteControl: folders, pack manifests, and metadata now use the new name.
+- Retained the 12.0+ taint mitigations and deferred slash command workflow introduced in 0.10.15.
+- Removed the old `SpeakinLite = EmoteControl` alias and aligned all code/documentation with the EmoteControl identity.
+- Updated packaging metadata so installers/publishers only reference EmoteControl.
+
+### Notes
+- This is a breaking namespace change; existing SpeakinLite installations will be redirected via pack renames.
+
 ## Version 0.10.15 - WoW 12.0+ Taint Mitigations
 
 ### Fixes & Improvements
