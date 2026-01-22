@@ -9,7 +9,7 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.10.15"
+addon.VERSION = "1.0.0"
 addon.DB_VERSION = 5
 
 addon.L = addon.L or {}
