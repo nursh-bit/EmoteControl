@@ -14,8 +14,8 @@ The EmoteControl addon has been restructured and improved with:
 
 ```
 EmoteControl/
-├── SpeakinLite/                    Main addon folder
-│   ├── SpeakinLite.toc            Addon manifest
+├── EmoteControl/                    Main addon folder
+│   ├── EmoteControl.toc            Addon manifest
 │   ├── Core.lua                    Event handling & trigger execution
 │   ├── Utils.lua                   Utility functions (loaded first!)
 │   ├── Registry.lua                Pack registration & trigger indexing
@@ -26,9 +26,9 @@ EmoteControl/
 │   ├── ImportExport.lua            Configuration sharing
 │   └── TriggerBuilder.lua          Visual trigger creation
 │
-├── SpeakinLite_Pack_*              41 phrase packs
+├── EmoteControl_Pack_*              41 phrase packs
 │   ├── Pack.lua
-│   └── SpeakinLite_Pack_*.toc
+│   └── EmoteControl_Pack_*.toc
 │
 ├── Documentation Files:
 │   ├── API.md                      Complete API reference ⭐ NEW
@@ -65,7 +65,7 @@ local dmg = "Damage: " .. LibEmoteControl:RandomNum(100, 500)
 ### 2. Consistent Naming
 All files now use "EmoteControl" consistently:
 - Namespace: `EmoteControl`
-- Backward compatibility maintained via `SpeakinLite = EmoteControl`
+- Backward compatibility maintained via `EmoteControl = EmoteControl`
 - SavedVariables: `EmoteControlDB`
 - Documentation updated
 
@@ -124,7 +124,7 @@ addon._spellNameCache = addon._spellNameCache or {}
 ## Backward Compatibility
 
 All existing functionality is preserved:
-- ✅ Old SpeakinLite references still work
+- ✅ Old EmoteControl references still work
 - ✅ SavedVariables automatically compatible
 - ✅ Existing packs work without changes
 - ✅ All APIs remain unchanged

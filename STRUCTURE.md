@@ -4,8 +4,8 @@
 
 ```
 EmoteControl/
-├── SpeakinLite/                 (Main addon folder)
-│   ├── SpeakinLite.toc         (Addon manifest)
+├── EmoteControl/                 (Main addon folder)
+│   ├── EmoteControl.toc         (Addon manifest)
 │   ├── Core.lua                 (Main event engine and triggers)
 │   ├── Utils.lua                (Utility functions - loaded first)
 │   ├── Registry.lua             (Pack management and trigger indexing)
@@ -16,8 +16,8 @@ EmoteControl/
 │   ├── ImportExport.lua         (Configuration sharing)
 │   └── TriggerBuilder.lua       (Visual trigger creation tool)
 │
-├── SpeakinLite_Pack_*           (Phrase packs - 41 total)
-│   ├── SpeakinLite_Pack_*.toc
+├── EmoteControl_Pack_*           (Phrase packs - 41 total)
+│   ├── EmoteControl_Pack_*.toc
 │   └── Pack.lua
 │
 ├── CHANGELOG.md
@@ -85,7 +85,7 @@ EmoteControl/
 ### 1. Namespace Management
 ```lua
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility
+EmoteControl = EmoteControl  -- Backward compatibility
 local addon = EmoteControl
 ```
 
@@ -274,9 +274,9 @@ messages = {
 
 ## Backward Compatibility
 
-The addon maintains backward compatibility with the "SpeakinLite" name:
-- SavedVariables supports both `EmoteControlDB` and `SpeakinLiteDB`
-- Namespace aliases (`SpeakinLite = EmoteControl`) maintained in all modules
+The addon maintains backward compatibility with the "EmoteControl" name:
+- SavedVariables supports both `EmoteControlDB` and `EmoteControlDB`
+- Namespace aliases (`EmoteControl = EmoteControl`) maintained in all modules
 - Existing packs continue to work without modification
 
 ## Contributing to the Project

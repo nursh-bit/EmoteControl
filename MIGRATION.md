@@ -1,23 +1,23 @@
 -- EMOTECONTROL MIGRATION GUIDE
 
-## Updating from SpeakinLite to EmoteControl
+## Updating from EmoteControl to EmoteControl
 
 This guide helps pack developers update their packs for the latest EmoteControl structure.
 
 ## What Changed
 
 ### 1. Addon Naming
-- **Old**: SpeakinLite
+- **Old**: EmoteControl
 - **New**: EmoteControl
 - **Status**: Backward compatible - old references still work
 
 ### 2. File Structure
-The core addon is still in the `SpeakinLite/` folder, but references use `EmoteControl` consistently.
+The core addon is still in the `EmoteControl/` folder, but references use `EmoteControl` consistently.
 
 ```lua
 -- Old (still works)
-if SpeakinLite then
-  SpeakinLite:RegisterPack(...)
+if EmoteControl then
+  EmoteControl:RegisterPack(...)
 end
 
 -- New (recommended)
@@ -27,7 +27,7 @@ end
 ```
 
 ### 3. SavedVariables
-- **Old**: EmoteControlDB, SpeakinLiteDB
+- **Old**: EmoteControlDB, EmoteControlDB
 - **New**: EmoteControlDB only
 - **Migration**: Automatic - old database is still recognized
 
@@ -37,13 +37,13 @@ end
 
 **Before:**
 ```
-## Dependencies: SpeakinLite
-## X-SpeakinLite-PackType: Common
+## Dependencies: EmoteControl
+## X-EmoteControl-PackType: Common
 ```
 
 **After:**
 ```
-## Dependencies: SpeakinLite
+## Dependencies: EmoteControl
 ## X-EmoteControl-PackType: Common
 ```
 
@@ -51,8 +51,8 @@ end
 
 **Before:**
 ```lua
-EmoteControl = EmoteControl or SpeakinLite or {}
-SpeakinLite = EmoteControl
+EmoteControl = EmoteControl or EmoteControl or {}
+EmoteControl = EmoteControl
 local addon = EmoteControl
 
 addon:RegisterPack({
@@ -64,7 +64,7 @@ addon:RegisterPack({
 **After:**
 ```lua
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility
+EmoteControl = EmoteControl  -- Backward compatibility
 local addon = EmoteControl
 
 addon:RegisterPack({
@@ -130,7 +130,7 @@ messages = {
 
 Your existing packs will continue to work without any changes due to:
 
-1. **Namespace aliases**: `SpeakinLite = EmoteControl`
+1. **Namespace aliases**: `EmoteControl = EmoteControl`
 2. **Function compatibility**: All old functions still exist
 3. **Database compatibility**: Old SavedVariables are still recognized
 4. **Event compatibility**: All event handlers work the same
@@ -236,13 +236,13 @@ end
 
 ### Issue: Pack not showing up
 **Solution**: 
-1. Check that Dependencies in .toc is set to `SpeakinLite`
-2. Verify folder name starts with `SpeakinLite_Pack_`
+1. Check that Dependencies in .toc is set to `EmoteControl`
+2. Verify folder name starts with `EmoteControl_Pack_`
 3. Check pack.id is set and unique
 
 ### Issue: EmoteControl is nil
 **Solution**:
-1. Ensure SpeakinLite is listed in Dependencies
+1. Ensure EmoteControl is listed in Dependencies
 2. Make sure your pack is LoadOnDemand
 3. Call registration in your Pack.lua file
 
@@ -293,5 +293,5 @@ For questions or issues:
 - Improved pack discovery/listing and trigger builder conditions
 
 ### 0.9.4 and earlier
-- Original SpeakinLite releases
+- Original EmoteControl releases
 - All functionality preserved in new version

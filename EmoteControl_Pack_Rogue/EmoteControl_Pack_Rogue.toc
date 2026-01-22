@@ -1,0 +1,10 @@
+﻿## Interface: 120000
+## Title: Emote Control - Rogue Pack
+## Notes: Rogue-specific triggers and phrases for EmoteControl.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: EmoteControl
+## LoadOnDemand: 1
+## X-EmoteControl-Class: ROGUE
+
+Pack.lua

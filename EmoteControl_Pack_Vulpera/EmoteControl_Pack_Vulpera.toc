@@ -1,0 +1,11 @@
+﻿## Interface: 120000
+## Title: Emote Control - Vulpera Race Pack
+## Notes: Vulpera-specific triggers and phrases for EmoteControl.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: EmoteControl
+## LoadOnDemand: 1
+## X-EmoteControl-PackType: Race
+## X-EmoteControl-Race: VULPERA
+
+Pack.lua

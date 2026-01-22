@@ -1,4 +1,4 @@
-package-as: SpeakinLite
+package-as: EmoteControl
 
 ignore:
   - .git
@@ -9,45 +9,45 @@ ignore:
   - "*.md"
 
 move-folders:
-  SpeakinLite/SpeakinLite: SpeakinLite
-  SpeakinLite/SpeakinLite_Pack_BloodElf: SpeakinLite_Pack_BloodElf
-  SpeakinLite/SpeakinLite_Pack_Common: SpeakinLite_Pack_Common
-  SpeakinLite/SpeakinLite_Pack_DailyActivities: SpeakinLite_Pack_DailyActivities
-  SpeakinLite/SpeakinLite_Pack_DarkIronDwarf: SpeakinLite_Pack_DarkIronDwarf
-  SpeakinLite/SpeakinLite_Pack_DeathKnight: SpeakinLite_Pack_DeathKnight
-  SpeakinLite/SpeakinLite_Pack_DemonHunter: SpeakinLite_Pack_DemonHunter
-  SpeakinLite/SpeakinLite_Pack_Dracthyr: SpeakinLite_Pack_Dracthyr
-  SpeakinLite/SpeakinLite_Pack_Draenei: SpeakinLite_Pack_Draenei
-  SpeakinLite/SpeakinLite_Pack_Druid: SpeakinLite_Pack_Druid
-  SpeakinLite/SpeakinLite_Pack_Dwarf: SpeakinLite_Pack_Dwarf
-  SpeakinLite/SpeakinLite_Pack_Earthen: SpeakinLite_Pack_Earthen
-  SpeakinLite/SpeakinLite_Pack_Evoker: SpeakinLite_Pack_Evoker
-  SpeakinLite/SpeakinLite_Pack_Gnome: SpeakinLite_Pack_Gnome
-  SpeakinLite/SpeakinLite_Pack_Goblin: SpeakinLite_Pack_Goblin
-  SpeakinLite/SpeakinLite_Pack_HighmountainTauren: SpeakinLite_Pack_HighmountainTauren
-  SpeakinLite/SpeakinLite_Pack_Human: SpeakinLite_Pack_Human
-  SpeakinLite/SpeakinLite_Pack_Hunter: SpeakinLite_Pack_Hunter
-  SpeakinLite/SpeakinLite_Pack_KulTiran: SpeakinLite_Pack_KulTiran
-  SpeakinLite/SpeakinLite_Pack_LightforgedDraenei: SpeakinLite_Pack_LightforgedDraenei
-  SpeakinLite/SpeakinLite_Pack_Mage: SpeakinLite_Pack_Mage
-  SpeakinLite/SpeakinLite_Pack_MagharOrc: SpeakinLite_Pack_MagharOrc
-  SpeakinLite/SpeakinLite_Pack_Mechagnome: SpeakinLite_Pack_Mechagnome
-  SpeakinLite/SpeakinLite_Pack_Monk: SpeakinLite_Pack_Monk
-  SpeakinLite/SpeakinLite_Pack_Nightborne: SpeakinLite_Pack_Nightborne
-  SpeakinLite/SpeakinLite_Pack_NightElf: SpeakinLite_Pack_NightElf
-  SpeakinLite/SpeakinLite_Pack_Orc: SpeakinLite_Pack_Orc
-  SpeakinLite/SpeakinLite_Pack_Paladin: SpeakinLite_Pack_Paladin
-  SpeakinLite/SpeakinLite_Pack_Pandaren: SpeakinLite_Pack_Pandaren
-  SpeakinLite/SpeakinLite_Pack_Priest: SpeakinLite_Pack_Priest
-  SpeakinLite/SpeakinLite_Pack_Professions: SpeakinLite_Pack_Professions
-  SpeakinLite/SpeakinLite_Pack_Rogue: SpeakinLite_Pack_Rogue
-  SpeakinLite/SpeakinLite_Pack_Shaman: SpeakinLite_Pack_Shaman
-  SpeakinLite/SpeakinLite_Pack_Tauren: SpeakinLite_Pack_Tauren
-  SpeakinLite/SpeakinLite_Pack_Troll: SpeakinLite_Pack_Troll
-  SpeakinLite/SpeakinLite_Pack_Undead: SpeakinLite_Pack_Undead
-  SpeakinLite/SpeakinLite_Pack_VoidElf: SpeakinLite_Pack_VoidElf
-  SpeakinLite/SpeakinLite_Pack_Vulpera: SpeakinLite_Pack_Vulpera
-  SpeakinLite/SpeakinLite_Pack_Warlock: SpeakinLite_Pack_Warlock
-  SpeakinLite/SpeakinLite_Pack_Warrior: SpeakinLite_Pack_Warrior
-  SpeakinLite/SpeakinLite_Pack_Worgen: SpeakinLite_Pack_Worgen
-  SpeakinLite/SpeakinLite_Pack_ZandalariTroll: SpeakinLite_Pack_ZandalariTroll
+  EmoteControl/EmoteControl: EmoteControl
+  EmoteControl/EmoteControl_Pack_BloodElf: EmoteControl_Pack_BloodElf
+  EmoteControl/EmoteControl_Pack_Common: EmoteControl_Pack_Common
+  EmoteControl/EmoteControl_Pack_DailyActivities: EmoteControl_Pack_DailyActivities
+  EmoteControl/EmoteControl_Pack_DarkIronDwarf: EmoteControl_Pack_DarkIronDwarf
+  EmoteControl/EmoteControl_Pack_DeathKnight: EmoteControl_Pack_DeathKnight
+  EmoteControl/EmoteControl_Pack_DemonHunter: EmoteControl_Pack_DemonHunter
+  EmoteControl/EmoteControl_Pack_Dracthyr: EmoteControl_Pack_Dracthyr
+  EmoteControl/EmoteControl_Pack_Draenei: EmoteControl_Pack_Draenei
+  EmoteControl/EmoteControl_Pack_Druid: EmoteControl_Pack_Druid
+  EmoteControl/EmoteControl_Pack_Dwarf: EmoteControl_Pack_Dwarf
+  EmoteControl/EmoteControl_Pack_Earthen: EmoteControl_Pack_Earthen
+  EmoteControl/EmoteControl_Pack_Evoker: EmoteControl_Pack_Evoker
+  EmoteControl/EmoteControl_Pack_Gnome: EmoteControl_Pack_Gnome
+  EmoteControl/EmoteControl_Pack_Goblin: EmoteControl_Pack_Goblin
+  EmoteControl/EmoteControl_Pack_HighmountainTauren: EmoteControl_Pack_HighmountainTauren
+  EmoteControl/EmoteControl_Pack_Human: EmoteControl_Pack_Human
+  EmoteControl/EmoteControl_Pack_Hunter: EmoteControl_Pack_Hunter
+  EmoteControl/EmoteControl_Pack_KulTiran: EmoteControl_Pack_KulTiran
+  EmoteControl/EmoteControl_Pack_LightforgedDraenei: EmoteControl_Pack_LightforgedDraenei
+  EmoteControl/EmoteControl_Pack_Mage: EmoteControl_Pack_Mage
+  EmoteControl/EmoteControl_Pack_MagharOrc: EmoteControl_Pack_MagharOrc
+  EmoteControl/EmoteControl_Pack_Mechagnome: EmoteControl_Pack_Mechagnome
+  EmoteControl/EmoteControl_Pack_Monk: EmoteControl_Pack_Monk
+  EmoteControl/EmoteControl_Pack_Nightborne: EmoteControl_Pack_Nightborne
+  EmoteControl/EmoteControl_Pack_NightElf: EmoteControl_Pack_NightElf
+  EmoteControl/EmoteControl_Pack_Orc: EmoteControl_Pack_Orc
+  EmoteControl/EmoteControl_Pack_Paladin: EmoteControl_Pack_Paladin
+  EmoteControl/EmoteControl_Pack_Pandaren: EmoteControl_Pack_Pandaren
+  EmoteControl/EmoteControl_Pack_Priest: EmoteControl_Pack_Priest
+  EmoteControl/EmoteControl_Pack_Professions: EmoteControl_Pack_Professions
+  EmoteControl/EmoteControl_Pack_Rogue: EmoteControl_Pack_Rogue
+  EmoteControl/EmoteControl_Pack_Shaman: EmoteControl_Pack_Shaman
+  EmoteControl/EmoteControl_Pack_Tauren: EmoteControl_Pack_Tauren
+  EmoteControl/EmoteControl_Pack_Troll: EmoteControl_Pack_Troll
+  EmoteControl/EmoteControl_Pack_Undead: EmoteControl_Pack_Undead
+  EmoteControl/EmoteControl_Pack_VoidElf: EmoteControl_Pack_VoidElf
+  EmoteControl/EmoteControl_Pack_Vulpera: EmoteControl_Pack_Vulpera
+  EmoteControl/EmoteControl_Pack_Warlock: EmoteControl_Pack_Warlock
+  EmoteControl/EmoteControl_Pack_Warrior: EmoteControl_Pack_Warrior
+  EmoteControl/EmoteControl_Pack_Worgen: EmoteControl_Pack_Worgen
+  EmoteControl/EmoteControl_Pack_ZandalariTroll: EmoteControl_Pack_ZandalariTroll

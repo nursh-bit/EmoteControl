@@ -1,0 +1,10 @@
+﻿## Interface: 120000
+## Title: Emote Control - Warlock Pack
+## Notes: Warlock spell phrases for EmoteControl.
+## Author: Nursh
+## Version: 0.8.0
+## LoadOnDemand: 1
+## Dependencies: EmoteControl
+## X-EmoteControl-Class: WARLOCK
+
+Pack.lua

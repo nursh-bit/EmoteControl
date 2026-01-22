@@ -1,0 +1,10 @@
+## Interface: 120000
+## Title: Emote Control - Mage Pack
+## Notes: Mage spell triggers and lore flavored phrases.
+## Author: Nursh
+## Version: 0.8.0
+## Dependencies: EmoteControl
+## LoadOnDemand: 1
+## X-EmoteControl-Class: MAGE
+
+Pack.lua
