@@ -221,8 +221,96 @@ function addon:BuildTriggerIndex()
             end
           end
 
-          -- Pre-resolve spell gating
+          -- Normalize common condition fields to reduce per-event work
           local cond = t.conditions or {}
+          if type(cond.class) == "string" then
+            cond.class = string.upper(cond.class)
+          elseif type(cond.class) == "table" then
+            local list = {}
+            for i, v in ipairs(cond.class) do
+              if type(v) == "string" then
+                list[i] = string.upper(v)
+              else
+                list[i] = v
+              end
+            end
+            cond.class = list
+          end
+
+          if type(cond.race) == "string" then
+            cond.race = string.upper(cond.race)
+          elseif type(cond.race) == "table" then
+            local list = {}
+            for i, v in ipairs(cond.race) do
+              if type(v) == "string" then
+                list[i] = string.upper(v)
+              else
+                list[i] = v
+              end
+            end
+            cond.race = list
+          end
+
+          if type(cond.instanceType) == "string" then
+            cond.instanceType = string.lower(cond.instanceType)
+          elseif type(cond.instanceType) == "table" then
+            local list = {}
+            for i, v in ipairs(cond.instanceType) do
+              if type(v) == "string" then
+                list[i] = string.lower(v)
+              else
+                list[i] = v
+              end
+            end
+            cond.instanceType = list
+          end
+
+          if type(cond.targetType) == "string" then
+            cond.targetType = string.lower(cond.targetType)
+          end
+
+          if cond.randomChance ~= nil then
+            local chance = tonumber(cond.randomChance)
+            if chance then
+              cond.randomChance = chance
+            end
+          end
+
+          if type(cond.groupSize) == "table" then
+            if cond.groupSize.min ~= nil then
+              cond.groupSize.min = tonumber(cond.groupSize.min)
+            end
+            if cond.groupSize.max ~= nil then
+              cond.groupSize.max = tonumber(cond.groupSize.max)
+            end
+          end
+
+          if cond.healthBelow ~= nil then
+            local v = tonumber(cond.healthBelow)
+            if v then cond.healthBelow = v end
+          end
+          if cond.healthAbove ~= nil then
+            local v = tonumber(cond.healthAbove)
+            if v then cond.healthAbove = v end
+          end
+
+          if type(cond.quality) == "string" then
+            local v = tonumber(cond.quality)
+            if v then cond.quality = v end
+          elseif type(cond.quality) == "table" then
+            local list = {}
+            for i, v in ipairs(cond.quality) do
+              local q = tonumber(v)
+              if q ~= nil then
+                list[i] = q
+              else
+                list[i] = v
+              end
+            end
+            cond.quality = list
+          end
+
+          -- Pre-resolve spell gating
           local spellID = cond.spellID
           local spellName = cond.spellName or cond.spell
           if not spellID and spellName and type(spellName) == "string" then

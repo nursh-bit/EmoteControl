@@ -194,7 +194,10 @@ resolvers.spell = function(ctx)
 end
 
 -- Affixes (Mythic+)
-local function GetAffixes()
+local function GetAffixesCached(ctx)
+    if ctx and ctx._affixes ~= nil then
+        return ctx._affixes
+    end
     local names = {}
     if C_MythicPlus and C_MythicPlus.GetCurrentAffixes then
          local affixes = C_MythicPlus.GetCurrentAffixes() or {}
@@ -205,14 +208,17 @@ local function GetAffixes()
             end
          end
     end
+    if ctx then
+        ctx._affixes = names
+    end
     return names
 end
 
-resolvers.affixes = function() return table.concat(GetAffixes(), ", ") end
-resolvers["affix-1"] = function() local a = GetAffixes(); return a[1] or "" end
-resolvers["affix-2"] = function() local a = GetAffixes(); return a[2] or "" end
-resolvers["affix-3"] = function() local a = GetAffixes(); return a[3] or "" end
-resolvers["affix-4"] = function() local a = GetAffixes(); return a[4] or "" end
+resolvers.affixes = function(ctx) return table.concat(GetAffixesCached(ctx), ", ") end
+resolvers["affix-1"] = function(ctx) local a = GetAffixesCached(ctx); return a[1] or "" end
+resolvers["affix-2"] = function(ctx) local a = GetAffixesCached(ctx); return a[2] or "" end
+resolvers["affix-3"] = function(ctx) local a = GetAffixesCached(ctx); return a[3] or "" end
+resolvers["affix-4"] = function(ctx) local a = GetAffixesCached(ctx); return a[4] or "" end
 
 resolvers.keystoneMapID = function()
     if C_ChallengeMode and C_ChallengeMode.GetActiveKeystoneInfo then

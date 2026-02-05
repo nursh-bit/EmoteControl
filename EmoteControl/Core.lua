@@ -820,6 +820,10 @@ local function QualityName(quality)
   return ""
 end
 
+local function BuildEventState()
+  return {}
+end
+
 function addon:ProcessLootMessage(message, eventName, attempts)
   if type(message) ~= "string" then return end
   local fullLink = message:match("|c.-|H.-|h.-|h|r")
@@ -854,9 +858,10 @@ function addon:ProcessLootMessage(message, eventName, attempts)
   local ctx = addon:MakeContext(nil, extraData)
   local bucket = addon.TriggersByEvent and addon.TriggersByEvent[eventName]
   if not bucket then return end
+  local state = BuildEventState()
 
   for _, trig in ipairs(bucket.list or {}) do
-    if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+    if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args, state) then
       addon:FireTrigger(trig, ctx)
     end
   end
@@ -918,37 +923,110 @@ local function StringOrTableMatch(value, condValue)
   return true
 end
 
-function addon:MatchesTrigger(trig, eventName, args)
+local function StateGet(state, key, compute)
+  if not state then return compute() end
+  local v = rawget(state, key)
+  if v == nil then
+    v = compute()
+    state[key] = v
+  end
+  return v
+end
+
+local function ComputePlayerClass()
+  return addon:GetPlayerClass()
+end
+
+local function ComputePlayerRace()
+  return addon:GetPlayerRaceFile()
+end
+
+local function ComputeSpecID()
+  return select(1, addon:GetSpecInfo())
+end
+
+local function ComputeInInstance()
+  return (IsInInstance and IsInInstance()) or false
+end
+
+local function ComputeInstanceType()
+  return select(2, addon:GetInstanceType()) or ""
+end
+
+local function ComputeInCombat()
+  return (UnitAffectingCombat and UnitAffectingCombat("player")) or false
+end
+
+local function ComputeInGroup()
+  return (IsInGroup and IsInGroup()) or (IsInRaid and IsInRaid()) or false
+end
+
+local function ComputeGroupSize()
+  local n = 1
+  if (IsInRaid and IsInRaid()) or (IsInGroup and IsInGroup()) then
+    n = (GetNumGroupMembers and GetNumGroupMembers()) or 0
+    if n <= 0 then n = 1 end
+  end
+  return n
+end
+
+local function ComputeHealthPct()
+  local healthMax = (UnitHealthMax and UnitHealthMax("player")) or 0
+  if healthMax > 0 then
+    return ((UnitHealth and UnitHealth("player")) or 0) / healthMax * 100
+  end
+  return 0
+end
+
+local function EnsureTargetState(state)
+  if not state then return false end
+  if state._targetChecked then return state.targetExists end
+
+  state._targetChecked = true
+  local exists = (UnitExists and UnitExists("target")) or false
+  state.targetExists = exists
+  if exists then
+    state.targetIsFriend = (UnitIsFriend and UnitIsFriend("player", "target")) or false
+    state.targetIsEnemy = (UnitIsEnemy and UnitIsEnemy("player", "target")) or false
+    state.targetClassification = (UnitClassification and UnitClassification("target")) or ""
+    state.targetLevel = (UnitLevel and UnitLevel("target")) or 0
+  else
+    state.targetIsFriend = false
+    state.targetIsEnemy = false
+    state.targetClassification = ""
+    state.targetLevel = 0
+  end
+  return exists
+end
+
+function addon:MatchesTrigger(trig, eventName, args, state)
   local cond = trig.conditions or {}
   args = args or {}
 
   -- Class gating
   if type(cond.class) == "string" then
-    if addon:GetPlayerClass() ~= cond.class then
+    local playerClass = StateGet(state, "playerClass", ComputePlayerClass)
+    if playerClass ~= cond.class then
+      return false
+    end
+  elseif type(cond.class) == "table" then
+    local playerClass = StateGet(state, "playerClass", ComputePlayerClass)
+    if not StringOrTableMatch(playerClass, cond.class) then
       return false
     end
   end
 
   -- Race gating (file is uppercase like "HUMAN", "UNDEAD")
   if cond.race ~= nil then
-    local want = cond.race
-    if type(want) == "string" then
-      want = string.upper(want)
-    elseif type(want) == "table" then
-      local t = {}
-      for _, v in ipairs(want) do
-        if type(v) == "string" then table.insert(t, string.upper(v)) end
-      end
-      want = t
-    end
-    if not StringOrTableMatch(addon:GetPlayerRaceFile(), want) then
+    local playerRace = StateGet(state, "playerRace", ComputePlayerRace)
+    if not StringOrTableMatch(playerRace, cond.race) then
       return false
     end
   end
 
   -- Spec gating (by specID)
   if cond.specID ~= nil then
-    local specID = select(1, addon:GetSpecInfo())
+    local specID = StateGet(state, "specID", ComputeSpecID)
     if type(cond.specID) == "number" then
       if specID ~= cond.specID then return false end
     elseif type(cond.specID) == "table" then
@@ -962,7 +1040,7 @@ function addon:MatchesTrigger(trig, eventName, args)
 
   -- Instance gating
   if type(cond.inInstance) == "boolean" then
-    local inInstance = IsInInstance and IsInInstance() or false
+    local inInstance = StateGet(state, "inInstance", ComputeInInstance)
     if inInstance ~= cond.inInstance then
       return false
     end
@@ -970,7 +1048,7 @@ function addon:MatchesTrigger(trig, eventName, args)
 
   -- Instance type gating ("none", "party", "raid", "pvp", "arena", "scenario")
   if cond.instanceType ~= nil then
-    local _, instType = addon:GetInstanceType()
+    local instType = StateGet(state, "instanceType", ComputeInstanceType)
     if not StringOrTableMatch(instType, cond.instanceType) then
       return false
     end
@@ -985,13 +1063,23 @@ function addon:MatchesTrigger(trig, eventName, args)
 
   -- Target gating
   if cond.requiresTarget == true then
-    if not (UnitExists and UnitExists("target")) then return false end
+    if state then
+      if not EnsureTargetState(state) then return false end
+    else
+      if not (UnitExists and UnitExists("target")) then return false end
+    end
   end
   if type(cond.targetType) == "string" then
-    if not (UnitExists and UnitExists("target")) then return false end
-    local tt = string.lower(cond.targetType)
-    if tt == "enemy" and (UnitIsFriend and UnitIsFriend("player", "target")) then return false end
-    if tt == "friendly" and not (UnitIsFriend and UnitIsFriend("player", "target")) then return false end
+    if state then
+      if not EnsureTargetState(state) then return false end
+      if cond.targetType == "enemy" and state.targetIsFriend then return false end
+      if cond.targetType == "friendly" and not state.targetIsFriend then return false end
+    else
+      if not (UnitExists and UnitExists("target")) then return false end
+      local tt = string.lower(cond.targetType)
+      if tt == "enemy" and (UnitIsFriend and UnitIsFriend("player", "target")) then return false end
+      if tt == "friendly" and not (UnitIsFriend and UnitIsFriend("player", "target")) then return false end
+    end
   end
 
   -- Spell gating
@@ -1001,8 +1089,12 @@ function addon:MatchesTrigger(trig, eventName, args)
     end
 
     if not trig._spellID then
-      local spellName = addon:GetSpellName(args.spellID)
-      local spellNameLower = addon:SafeLower(spellName)
+      local spellNameLower = args.spellNameLower
+      if spellNameLower == nil then
+        local spellName = addon:GetSpellName(args.spellID)
+        spellNameLower = addon:SafeLower(spellName)
+        args.spellNameLower = spellNameLower
+      end
       if trig._spellNameLower then
         local want = trig._spellNameLower
         if type(want) == "string" and want:sub(-1) == "*" then
@@ -1048,8 +1140,7 @@ function addon:MatchesTrigger(trig, eventName, args)
     elseif type(cond.quality) == "table" then
       local ok = false
       for _, v in ipairs(cond.quality) do
-        local want = tonumber(v) or v
-        if want == args.quality then ok = true; break end
+        if v == args.quality then ok = true; break end
       end
       if not ok then return false end
     end
@@ -1057,7 +1148,10 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Random chance (0.0 to 1.0, where 0.5 = 50%)
   if cond.randomChance ~= nil then
-    local chance = tonumber(cond.randomChance)
+    local chance = cond.randomChance
+    if type(chance) ~= "number" then
+      chance = tonumber(chance)
+    end
     if chance then
       if chance <= 0 then return false end
       if chance < 1 and math.random() > chance then
@@ -1068,7 +1162,7 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- In combat check
   if type(cond.inCombat) == "boolean" then
-    local inCombat = UnitAffectingCombat and UnitAffectingCombat("player") or false
+    local inCombat = StateGet(state, "inCombat", ComputeInCombat)
     if inCombat ~= cond.inCombat then
       return false
     end
@@ -1076,7 +1170,7 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- In group check
   if type(cond.inGroup) == "boolean" then
-    local inGroup = (IsInGroup and IsInGroup()) or (IsInRaid and IsInRaid()) or false
+    local inGroup = StateGet(state, "inGroup", ComputeInGroup)
     if inGroup ~= cond.inGroup then
       return false
     end
@@ -1084,17 +1178,12 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Group size check
   if type(cond.groupSize) == "table" then
-    local size = (GetNumGroupMembers and GetNumGroupMembers()) or 0
-    if IsInRaid and IsInRaid() then
-      size = GetNumGroupMembers and GetNumGroupMembers() or 0
-    elseif IsInGroup and IsInGroup() then
-      size = GetNumGroupMembers and GetNumGroupMembers() or 0
-    else
-      size = 1
-    end
+    local size = StateGet(state, "groupSize", ComputeGroupSize)
 
-    local minSize = tonumber(cond.groupSize.min)
-    local maxSize = tonumber(cond.groupSize.max)
+    local minSize = cond.groupSize.min
+    local maxSize = cond.groupSize.max
+    if type(minSize) ~= "number" then minSize = tonumber(minSize) end
+    if type(maxSize) ~= "number" then maxSize = tonumber(maxSize) end
     if minSize and size < minSize then
       return false
     end
@@ -1105,38 +1194,68 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Has aura/buff check
   if type(cond.hasAura) == "string" or type(cond.hasAura) == "number" then
-    local foundAura = false
-    if type(AuraUtil) == "table" and type(AuraUtil.FindAuraByName) == "function" then
-      -- Retail API
-      foundAura = AuraUtil.FindAuraByName(cond.hasAura, "player") ~= nil
+    local foundAura
+    if state then
+      state._auraCache = state._auraCache or {}
+      local cache = state._auraCache
+      local key = cond.hasAura
+      foundAura = cache[key]
+      if foundAura == nil then
+        if type(AuraUtil) == "table" and type(AuraUtil.FindAuraByName) == "function" then
+          -- Retail API
+          foundAura = AuraUtil.FindAuraByName(cond.hasAura, "player") ~= nil
+        else
+          local legacyUnitBuff = rawget(_G, "UnitBuff")
+          if type(legacyUnitBuff) == "function" then
+            -- Classic API - scan buffs
+            for i = 1, 40 do
+              local name, _, _, _, _, _, _, _, _, spellId = legacyUnitBuff("player", i)
+              if not name then break end
+              if name == cond.hasAura or spellId == cond.hasAura then
+                foundAura = true
+                break
+              end
+            end
+          end
+        end
+        cache[key] = foundAura or false
+      end
     else
-      local legacyUnitBuff = rawget(_G, "UnitBuff")
-      if type(legacyUnitBuff) == "function" then
-        -- Classic API - scan buffs
-        for i = 1, 40 do
-          local name, _, _, _, _, _, _, _, _, spellId = legacyUnitBuff("player", i)
-          if not name then break end
-          if name == cond.hasAura or spellId == cond.hasAura then
-            foundAura = true
-            break
+      foundAura = false
+      if type(AuraUtil) == "table" and type(AuraUtil.FindAuraByName) == "function" then
+        -- Retail API
+        foundAura = AuraUtil.FindAuraByName(cond.hasAura, "player") ~= nil
+      else
+        local legacyUnitBuff = rawget(_G, "UnitBuff")
+        if type(legacyUnitBuff) == "function" then
+          -- Classic API - scan buffs
+          for i = 1, 40 do
+            local name, _, _, _, _, _, _, _, _, spellId = legacyUnitBuff("player", i)
+            if not name then break end
+            if name == cond.hasAura or spellId == cond.hasAura then
+              foundAura = true
+              break
+            end
           end
         end
       end
     end
-    if not foundAura then
-      return false
-    end
+    if not foundAura then return false end
   end
   
   -- Target is boss check
   if cond.targetIsBoss == true then
-    if not (UnitExists and UnitExists("target")) then return false end
-    local classification = UnitClassification and UnitClassification("target") or ""
+    if state then
+      if not EnsureTargetState(state) then return false end
+    else
+      if not (UnitExists and UnitExists("target")) then return false end
+    end
+    local classification = state and state.targetClassification or (UnitClassification and UnitClassification("target")) or ""
     if classification ~= "worldboss" and classification ~= "rareelite" and classification ~= "elite" then
       -- Also check if it's a dungeon/raid boss
-      local targetLevel = UnitLevel and UnitLevel("target") or 0
-      local inInstance = IsInInstance and IsInInstance() or false
-      local isEnemy = UnitIsEnemy and UnitIsEnemy("player", "target") or false
+      local targetLevel = state and state.targetLevel or (UnitLevel and UnitLevel("target")) or 0
+      local inInstance = StateGet(state, "inInstance", ComputeInInstance)
+      local isEnemy = state and state.targetIsEnemy or (UnitIsEnemy and UnitIsEnemy("player", "target")) or false
       if not (targetLevel == -1 or (inInstance and isEnemy)) then
         return false
       end
@@ -1145,13 +1264,11 @@ function addon:MatchesTrigger(trig, eventName, args)
   
   -- Health percentage threshold
   if cond.healthBelow ~= nil or cond.healthAbove ~= nil then
-    local below = tonumber(cond.healthBelow)
-    local above = tonumber(cond.healthAbove)
-    local healthMax = (UnitHealthMax and UnitHealthMax("player")) or 0
-    local healthPct = 0
-    if healthMax > 0 then
-      healthPct = ((UnitHealth and UnitHealth("player")) or 0) / healthMax * 100
-    end
+    local below = cond.healthBelow
+    local above = cond.healthAbove
+    if type(below) ~= "number" then below = tonumber(below) end
+    if type(above) ~= "number" then above = tonumber(above) end
+    local healthPct = StateGet(state, "healthPct", ComputeHealthPct)
     if below then
       below = addon:ClampNumber(below, 0, 100)
       if healthPct >= below then return false end
@@ -1556,8 +1673,9 @@ function addon:HandleEvent(eventName, ...)
       local bucket = addon.TriggersByEvent and addon.TriggersByEvent.BAG_FULL
       if bucket then
         local ctx = addon:MakeContext(nil)
+        local state = BuildEventState()
         for _, trig in ipairs(bucket.list or {}) do
-          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, "BAG_FULL", {}) then
+          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, "BAG_FULL", {}, state) then
             addon:FireTrigger(trig, ctx)
           end
         end
@@ -1584,8 +1702,9 @@ function addon:HandleEvent(eventName, ...)
       local threshold = (db and tonumber(db.repairThreshold)) or 0.2
       if lowestPct and lowestPct <= threshold then
         local ctx = addon:MakeContext(nil)
+        local state = BuildEventState()
         for _, trig in ipairs(bucket.list or {}) do
-          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, "REPAIR_NEEDED", {}) then
+          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, "REPAIR_NEEDED", {}, state) then
             addon:FireTrigger(trig, ctx)
           end
         end
@@ -1631,19 +1750,26 @@ function addon:HandleEvent(eventName, ...)
 
     args.unit = unit
     args.spellID = spellID
+    if bucket.list and #bucket.list > 0 then
+      local spellName = addon:GetSpellName(spellID)
+      if spellName then
+        args.spellNameLower = addon:SafeLower(spellName)
+      end
+    end
     local ctx = addon:MakeContext(spellID)
+    local state = BuildEventState()
 
     local listForSpell = bucket.bySpellID and bucket.bySpellID[spellID]
     if listForSpell then
       for _, trig in ipairs(listForSpell) do
-        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args, state) then
           addon:FireTrigger(trig, ctx)
         end
       end
     end
 
     for _, trig in ipairs(bucket.list or {}) do
-      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args, state) then
         addon:FireTrigger(trig, ctx)
       end
     end
@@ -1668,9 +1794,10 @@ function addon:HandleEvent(eventName, ...)
         achievementPoints = tostring(points or 0),
       }
       local ctx = addon:MakeContext(nil, extraData)
+      local state = BuildEventState()
       
       for _, trig in ipairs(bucket.list or {}) do
-        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args, state) then
           addon:FireTrigger(trig, ctx)
         end
       end
@@ -1687,9 +1814,10 @@ function addon:HandleEvent(eventName, ...)
       newLevel = tostring(currentLevel),
     }
     local ctx = addon:MakeContext(nil, extraData)
+    local state = BuildEventState()
     
     for _, trig in ipairs(bucket.list or {}) do
-      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args, state) then
         addon:FireTrigger(trig, ctx)
       end
     end
@@ -1707,40 +1835,9 @@ function addon:HandleEvent(eventName, ...)
   
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
-    -- Reuse a single table for combat log event info to avoid per-event allocations
-    local eventInfo = addon._combatLogInfo
-    if not eventInfo then
-      eventInfo = {}
-      addon._combatLogInfo = eventInfo
-    else
-      wipe(eventInfo)
-    end
-
-    -- Use select to grab params without table allocation (11.0/12.0 safe)
-    -- CombatLogGetCurrentEventInfo returns: timestamp, subevent, hideCaster, sourceGUID, sourceName, sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, ...
-    local _, subevent, _, sourceGUID, _, _, _, _, destName = CombatLogGetCurrentEventInfo()
-    
-    eventInfo[2] = subevent
-    eventInfo[4] = sourceGUID
-    eventInfo[9] = destName
-
-    -- Extract payload args based on subevent
-    if subevent == "SWING_DAMAGE" then
-        eventInfo[12], _, _, _, _, _, eventInfo[18] = select(12, CombatLogGetCurrentEventInfo())
-    elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
-        eventInfo[12], eventInfo[13], _, eventInfo[15], _, _, _, _, _, eventInfo[21] = select(12, CombatLogGetCurrentEventInfo())
-    elseif subevent == "SWING_MISSED" then
-        eventInfo[12] = select(12, CombatLogGetCurrentEventInfo())
-    elseif subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
-        eventInfo[12], eventInfo[13], _, eventInfo[15] = select(12, CombatLogGetCurrentEventInfo())
-    elseif subevent == "SPELL_INTERRUPT" then
-        eventInfo[12], eventInfo[13], _, _, eventInfo[16] = select(12, CombatLogGetCurrentEventInfo())
-    end
-
-    local subevent = eventInfo[2]
-
-    local sourceGUID = eventInfo[4]
-    local destName = eventInfo[9]
+    -- CombatLogGetCurrentEventInfo returns: timestamp, subevent, hideCaster, sourceGUID, sourceName,
+    -- sourceFlags, sourceRaidFlags, destGUID, destName, destFlags, destRaidFlags, ...
+    local _, subevent, _, sourceGUID, _, _, _, _, destName, _, _, param12, param13, param14, param15, param16, param17, param18, param19, param20, param21 = CombatLogGetCurrentEventInfo()
 
     -- Only process events where player is the source
     if sourceGUID ~= UnitGUID("player") then
@@ -1753,25 +1850,25 @@ function addon:HandleEvent(eventName, ...)
     local spellId, spellName
 
     if subevent == "SWING_DAMAGE" then
-      local amount = eventInfo[12]
-      local critical = eventInfo[18]
+      local amount = param12
+      local critical = param18
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
         extraData.spell = "attack"
       end
     elseif subevent == "SPELL_DAMAGE" or subevent == "SPELL_PERIODIC_DAMAGE" or subevent == "RANGE_DAMAGE" then
-      spellId = eventInfo[12]
-      spellName = eventInfo[13]
-      local amount = eventInfo[15]
-      local critical = eventInfo[21]
+      spellId = param12
+      spellName = param13
+      local amount = param15
+      local critical = param21
       if critical then
         triggerEventName = "COMBAT_CRITICAL_HIT"
         extraData.damage = tostring(amount or 0)
         extraData.spell = spellName or "spell"
       end
     elseif subevent == "SWING_MISSED" then
-      local missType = eventInfo[12]
+      local missType = param12
       if missType == "PARRY" then
         triggerEventName = "COMBAT_PARRIED"
       else
@@ -1779,9 +1876,9 @@ function addon:HandleEvent(eventName, ...)
       end
       extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_MISSED" or subevent == "RANGE_MISSED" then
-      spellId = eventInfo[12]
-      spellName = eventInfo[13]
-      local missType = eventInfo[15]
+      spellId = param12
+      spellName = param13
+      local missType = param15
       if missType == "PARRY" then
         triggerEventName = "COMBAT_PARRIED"
       else
@@ -1789,9 +1886,9 @@ function addon:HandleEvent(eventName, ...)
       end
       extraData.missType = tostring(missType or "MISS")
     elseif subevent == "SPELL_INTERRUPT" then
-      spellId = eventInfo[12]
-      spellName = eventInfo[13]
-      local extraSpellName = eventInfo[16]
+      spellId = param12
+      spellName = param13
+      local extraSpellName = param16
       triggerEventName = "COMBAT_INTERRUPTED"
       extraData.spell = spellName or "spell"
       extraData.interruptedSpell = extraSpellName or "unknown"
@@ -1803,9 +1900,10 @@ function addon:HandleEvent(eventName, ...)
       if bucket then
         extraData.target = destName or "enemy"
         local ctx = addon:MakeContext(spellId, extraData)
+        local state = BuildEventState()
 
         for _, trig in ipairs(bucket.list or {}) do
-          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, triggerEventName, args) then
+          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, triggerEventName, args, state) then
             addon:FireTrigger(trig, ctx)
           end
         end
@@ -1817,9 +1915,10 @@ function addon:HandleEvent(eventName, ...)
 
   -- Non-spell events (generic)
   local ctx = addon:MakeContext(nil)
+  local state = BuildEventState()
 
   for _, trig in ipairs(bucket.list or {}) do
-    if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+    if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args, state) then
       addon:FireTrigger(trig, ctx)
     end
   end
