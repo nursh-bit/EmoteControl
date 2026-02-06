@@ -1,11 +1,10 @@
 ## Interface: 120000
 ## Title: EmoteControl
-## Notes: Lightweight speech/announcement addon with modular phrase packs.
+## Notes: Lightweight speech/announcement addon with modular phrase packs (Retail only).
 ## Author: Nursh
 ## Version: 0.10.5
 ## SavedVariables: EmoteControlDB
-## X-Curse-Project-ID: 123456
-## X-Wago-ID: 1a2b3c4d5e6f7g
+## X-Curse-Project-ID: 1432552
 
 Utils.lua
 Registry.lua

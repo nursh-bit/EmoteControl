@@ -3,7 +3,9 @@
 -- Uses Settings.RegisterCanvasLayoutCategory for custom widget placement
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 local panel
@@ -161,7 +163,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enabled = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -169,7 +170,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enableSpellTriggers = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -177,7 +177,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enableNonSpellTriggers = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -185,7 +184,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enableCombatLogTriggers = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -193,7 +191,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enableLootTriggers = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -201,7 +198,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enableAchievementTriggers = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -209,7 +205,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.enableLevelUpTriggers = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 32
@@ -219,7 +214,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     addon:ApplyRecommendedDefaults(db)
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
     if panel and panel:GetScript("OnShow") then
       panel:GetScript("OnShow")(panel)
     end
@@ -231,7 +225,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.onlyLearnedSpells = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -239,7 +232,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.fallbackToSelf = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   -- Channel selection (simple radio group)
@@ -262,7 +254,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.channel = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
     for _, r in ipairs(radio) do
       r:SetChecked(r._value == v)
     end
@@ -299,7 +290,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.globalCooldown = math.floor(value + 0.5)
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
     SetSliderLabel(self, db.globalCooldown)
   end)
 
@@ -309,7 +299,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.maxPerMinute = math.floor(value + 0.5)
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
     SetSliderLabel(self, db.maxPerMinute)
   end)
 
@@ -322,7 +311,6 @@ function addon:CreateSettingsPanel()
       sliderAdaptiveMax:SetEnabled(v and true or false)
     end
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
   end)
 
   y = y - 28
@@ -331,7 +319,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.adaptiveCooldownMax = value
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
     SetSliderLabel(self, string.format("%.1f", value))
   end)
 
@@ -341,7 +328,6 @@ function addon:CreateSettingsPanel()
     local db = addon:GetDB() or {}
     db.packProfilesEnabled = v
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
     if type(addon.RebuildAndRegister) == "function" then
       addon:RebuildAndRegister()
     end
@@ -487,7 +473,6 @@ function addon:CreatePacksSettingsPanel()
     local db = addon:GetDB() or {}
     db.packEnabled = db.packEnabled or {}
     EmoteControlDB = db
-    SpeakinLiteDB = EmoteControlDB
 
     Clear()
 
@@ -537,7 +522,6 @@ function addon:CreatePacksSettingsPanel()
             db2.packEnabled = db2.packEnabled or {}
             db2.packEnabled[entry.id] = v
             EmoteControlDB = db2
-            SpeakinLiteDB = EmoteControlDB
           end
         end)
         local enabled = (type(addon.GetPackEnabled) == "function") and addon:GetPackEnabled(entry.id) or (db.packEnabled[entry.id] ~= false)

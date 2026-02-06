@@ -3,7 +3,9 @@
 -- Uses Base64 encoding for compact configuration strings
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 -- Base64 encoding/decoding (simple implementation)
@@ -47,16 +49,31 @@ local function Base64Encode(data)
 end
 
 local function Base64Decode(data)
-  if type(data) ~= "string" then return "" end
-  data = data:gsub("[^" .. b64chars .. "=]", "")
+  if type(data) ~= "string" then return nil, "Invalid base64 input" end
+  if data:find("[^" .. b64chars .. "=%s]") then
+    return nil, "Invalid base64 alphabet"
+  end
+  data = data:gsub("%s+", "")
+  if data == "" then return "", nil end
+  if (#data % 4) ~= 0 then
+    return nil, "Invalid base64 length"
+  end
   
   local result = {}
   for i = 1, #data, 4 do
-    local c1, c2, c3, c4 = data:sub(i, i+3):byte(1, 4)
-    c1 = b64lookup[string.char(c1)] or 0
-    c2 = b64lookup[string.char(c2)] or 0
-    c3 = b64lookup[string.char(c3 or 61)] or 0
-    c4 = b64lookup[string.char(c4 or 61)] or 0
+    local chunk = data:sub(i, i + 3)
+    local s1, s2, s3, s4 = chunk:sub(1, 1), chunk:sub(2, 2), chunk:sub(3, 3), chunk:sub(4, 4)
+    if s1 == "" or s2 == "" or s3 == "" or s4 == "" then
+      return nil, "Invalid base64 chunk"
+    end
+
+    local c1 = b64lookup[s1]
+    local c2 = b64lookup[s2]
+    local c3 = (s3 == "=") and 0 or b64lookup[s3]
+    local c4 = (s4 == "=") and 0 or b64lookup[s4]
+    if c1 == nil or c2 == nil or c3 == nil or c4 == nil then
+      return nil, "Invalid base64 alphabet"
+    end
     
     local n = c1 * 262144 + c2 * 4096 + c3 * 64 + c4
     local a = math.floor(n / 65536) % 256
@@ -64,15 +81,15 @@ local function Base64Decode(data)
     local c = n % 256
     
     table.insert(result, string.char(a))
-    if data:sub(i+2, i+2) ~= '=' then
+    if s3 ~= "=" then
       table.insert(result, string.char(b))
     end
-    if data:sub(i+3, i+3) ~= '=' then
+    if s4 ~= "=" then
       table.insert(result, string.char(c))
     end
   end
   
-  return table.concat(result)
+  return table.concat(result), nil
 end
 
 -- Minimal JSON encoder/decoder (safe for WoW; no loadstring)
@@ -338,7 +355,10 @@ function addon:ImportTrigger(importString)
   end
   
   local encoded = importString:sub(5)
-  local serialized = Base64Decode(encoded)
+  local serialized, decodeErr = Base64Decode(encoded)
+  if not serialized then
+    return false, "Invalid Base64 data: " .. tostring(decodeErr)
+  end
   local data, err = DeserializeTable(serialized)
   
   if not data then
@@ -408,7 +428,10 @@ function addon:ImportAllTriggers(importString, merge)
   end
   
   local encoded = importString:sub(5)
-  local serialized = Base64Decode(encoded)
+  local serialized, decodeErr = Base64Decode(encoded)
+  if not serialized then
+    return false, "Invalid Base64 data: " .. tostring(decodeErr)
+  end
   local data, err = DeserializeTable(serialized)
   
   if not data then

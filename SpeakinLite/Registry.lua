@@ -3,7 +3,9 @@
 -- Packs are separate LoadOnDemand addons that call EmoteControl:RegisterPack({...}).
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 -- Pack and trigger data structures
@@ -35,7 +37,7 @@ function addon:IsPackEnabled(packId)
     return addon:GetPackEnabled(packId)
   end
   if type(packId) ~= "string" or packId == "" then return true end
-  local theDb = rawget(_G, "EmoteControlDB") or rawget(_G, "SpeakinLiteDB")
+  local theDb = rawget(_G, "EmoteControlDB")
   if type(theDb) ~= "table" then return true end
   local pe = theDb.packEnabled
   if type(pe) ~= "table" then return true end
@@ -218,6 +220,11 @@ function addon:BuildTriggerIndex()
           if type(trig.conditions) == "table" then
             for k, v in pairs(trig.conditions) do
               t.conditions[k] = v
+            end
+          end
+          for k, _ in pairs(CONDITION_KEYS) do
+            if t.conditions[k] == nil and trig[k] ~= nil then
+              t.conditions[k] = trig[k]
             end
           end
 

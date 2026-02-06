@@ -3,7 +3,9 @@
 -- Simplifies trigger creation with form-based configuration
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 local builderFrame = nil
@@ -51,7 +53,7 @@ function addon:CreateTriggerBuilder()
   eventLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
   eventLabel:SetText("Event:")
 
-  local eventDropdown = CreateFrame("Frame", "SLBuilderEventDropdown", frame, "UIDropDownMenuTemplate")
+  local eventDropdown = CreateFrame("Frame", "EmoteControlBuilderEventDropdown", frame, "UIDropDownMenuTemplate")
   eventDropdown:SetPoint("TOPLEFT", eventLabel, "TOPRIGHT", -15, 7)
   
   local eventOptions = {
@@ -110,7 +112,7 @@ function addon:CreateTriggerBuilder()
   channelLabel:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
   channelLabel:SetText("Channel:")
 
-  local channelDropdown = CreateFrame("Frame", "SLBuilderChannelDropdown", frame, "UIDropDownMenuTemplate")
+  local channelDropdown = CreateFrame("Frame", "EmoteControlBuilderChannelDropdown", frame, "UIDropDownMenuTemplate")
   channelDropdown:SetPoint("TOPLEFT", channelLabel, "TOPRIGHT", -15, 7)
   
   local channelOptions = {"SAY", "YELL", "EMOTE", "PARTY", "RAID", "INSTANCE", "SELF", "AUTO"}
@@ -296,7 +298,7 @@ function addon:CreateTriggerBuilder()
     end
   end)
 
-  local targetTypeDropdown = CreateFrame("Frame", "SLBuilderTargetTypeDropdown", frame, "UIDropDownMenuTemplate")
+  local targetTypeDropdown = CreateFrame("Frame", "EmoteControlBuilderTargetTypeDropdown", frame, "UIDropDownMenuTemplate")
   targetTypeDropdown:SetPoint("TOPLEFT", cbTarget, "TOPRIGHT", -10, 2)
   UIDropDownMenu_SetWidth(targetTypeDropdown, 110)
   UIDropDownMenu_SetText(targetTypeDropdown, "Target type")

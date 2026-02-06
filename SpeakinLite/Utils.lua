@@ -3,7 +3,9 @@
 -- This file is loaded first according to the .toc file
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 -- String utilities
@@ -62,7 +64,6 @@ end
 function addon:GetDB()
   return self.db
     or rawget(_G, "EmoteControlDB")
-    or rawget(_G, "SpeakinLiteDB")
 end
 
 -- Random selection from list

@@ -3,7 +3,9 @@
 -- Allows editing: enabled state, cooldown, channel, and message overrides
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 local frame
@@ -14,6 +16,14 @@ local function EnsureOverride(triggerId)
   if type(db) ~= "table" then return nil end
   db.triggerOverrides = db.triggerOverrides or {}
   db.triggerOverrides[triggerId] = db.triggerOverrides[triggerId] or {}
+  return db.triggerOverrides[triggerId]
+end
+
+local function GetOverride(triggerId)
+  local db = addon:GetDB()
+  if type(db) ~= "table" or type(db.triggerOverrides) ~= "table" then
+    return nil
+  end
   return db.triggerOverrides[triggerId]
 end
 
@@ -124,7 +134,7 @@ local function RefreshDetails()
 
   frame.detailsTitle:SetText(selectedId .. "\n" .. PrettyLabel(trig))
 
-  local ov = EnsureOverride(selectedId) or {}
+  local ov = GetOverride(selectedId) or {}
   frame.enabled:SetChecked(ov.enabled ~= false)
   frame.cooldown:SetText(tostring(ov.cooldown or ""))
   frame.channelDD:SetValue(ov.channel or "")
@@ -249,20 +259,18 @@ function addon:OpenEditor()
         self._dragging = true
         self._startX = GetCursorPosition()
         self._startLeftWidth = leftPane:GetWidth()
+        self:SetScript("OnUpdate", function(this)
+          local currentX = GetCursorPosition()
+          local delta = currentX - this._startX
+          local newWidth = math.max(280, math.min(480, this._startLeftWidth + delta))
+          leftPane:SetSize(newWidth, 420)
+        end)
       end
     end)
 
     divider:SetScript("OnMouseUp", function(self, button)
       self._dragging = false
-    end)
-
-    divider:SetScript("OnUpdate", function(self)
-      if self._dragging then
-        local currentX = GetCursorPosition()
-        local delta = currentX - self._startX
-        local newWidth = math.max(280, math.min(480, self._startLeftWidth + delta))
-        leftPane:SetSize(newWidth, 420)
-      end
+      self:SetScript("OnUpdate", nil)
     end)
 
     local scroll = CreateFrame("ScrollFrame", "EmoteControlEditorScroll", leftPane, "FauxScrollFrameTemplate")

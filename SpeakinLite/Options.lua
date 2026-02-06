@@ -3,7 +3,9 @@
 -- Shortcuts available via /sl options, /sl packs, /sl editor
 
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 -- Helper function to create and configure font strings with common patterns

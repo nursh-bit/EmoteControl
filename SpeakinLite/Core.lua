@@ -5,13 +5,15 @@ local ADDON_NAME = ...
 
 -- Initialize the EmoteControl namespace with backward compatibility
 EmoteControl = EmoteControl or {}
-SpeakinLite = EmoteControl  -- Backward compatibility alias
+if rawget(_G, "SpeakinLite") == nil then
+  SpeakinLite = EmoteControl  -- Backward compatibility alias
+end
 local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
 addon.VERSION = "0.10.5"
-addon.DB_VERSION = 5
+addon.DB_VERSION = 6
 
 addon.L = addon.L or {}
 local L = addon.L
@@ -64,6 +66,48 @@ local function SetDefault(tbl, key, value)
   if type(tbl) ~= "table" then return end
   if tbl[key] == nil then
     tbl[key] = value
+  end
+end
+
+local function DeepCopy(value, seen)
+  if type(value) ~= "table" then
+    return value
+  end
+  seen = seen or {}
+  if seen[value] then
+    return seen[value]
+  end
+  local out = {}
+  seen[value] = out
+  for k, v in pairs(value) do
+    out[DeepCopy(k, seen)] = DeepCopy(v, seen)
+  end
+  return out
+end
+
+local function RemapKey(t, oldKey, newKey)
+  if type(t) ~= "table" then return end
+  if t[oldKey] == nil then return end
+  if t[newKey] == nil then
+    t[newKey] = t[oldKey]
+  end
+  t[oldKey] = nil
+end
+
+local function RemapPrefixedKeys(t, oldPrefix, newPrefix)
+  if type(t) ~= "table" then return end
+  local moves = {}
+  for k, v in pairs(t) do
+    if type(k) == "string" and string.sub(k, 1, #oldPrefix) == oldPrefix then
+      local newKey = newPrefix .. string.sub(k, #oldPrefix + 1)
+      table.insert(moves, { old = k, new = newKey, value = v })
+    end
+  end
+  for _, move in ipairs(moves) do
+    if t[move.new] == nil then
+      t[move.new] = move.value
+    end
+    t[move.old] = nil
   end
 end
 
@@ -133,6 +177,21 @@ function addon:ApplyMigrations(db)
   if v < 5 then
     SetDefault(db, "packProfilesEnabled", false)
     v = 5
+  end
+
+  if v < 6 then
+    RemapKey(db.packEnabled, "race_undead", "race_scourge")
+    if type(db.packEnabledBySpec) == "table" then
+      for _, specEnabled in pairs(db.packEnabledBySpec) do
+        RemapKey(specEnabled, "race_undead", "race_scourge")
+      end
+    end
+    RemapPrefixedKeys(db.triggerOverrides, "race_undead:", "race_scourge:")
+    if type(db.stats) == "table" then
+      RemapPrefixedKeys(db.stats.triggers, "race_undead:", "race_scourge:")
+      RemapPrefixedKeys(db.stats.session, "race_undead:", "race_scourge:")
+    end
+    v = 6
   end
 
   db.version = v
@@ -712,7 +771,7 @@ function addon:RecordTriggerStat(trig, message)
     lastFired = 0,
     firstFired = 0,
     category = trig.category or "unknown",
-    packName = trig.packName or "unknown"
+    packName = trig.packId or "unknown"
   }
   
   local stat = db.stats.triggers[trigID]
@@ -1634,7 +1693,6 @@ function addon:SetPackEnabled(packId, enabled, addonName)
     theDb.packEnabled[packId] = enabled and true or false
   end
   EmoteControlDB = theDb
-  SpeakinLiteDB = EmoteControlDB
 
   if enabled and addonName then
     if C_AddOns and type(C_AddOns.LoadAddOn) == "function" then
@@ -1681,12 +1739,27 @@ function addon:RebuildAndRegister()
   end
   
   addon._registeredEvents = addon._registeredEvents or {}
+  addon._unsupportedEvents = addon._unsupportedEvents or {}
   local keep = {
     GET_ITEM_INFO_RECEIVED = true,
     ITEM_DATA_LOAD_RESULT = true,
     PLAYER_REGEN_DISABLED = true,
     PLAYER_REGEN_ENABLED = true,
   }
+
+  local function RegisterEventSafe(eventName)
+    local ok, err = pcall(frame.RegisterEvent, frame, eventName)
+    if ok then
+      addon._registeredEvents[eventName] = true
+      return true
+    end
+    addon._registeredEvents[eventName] = nil
+    if not addon._unsupportedEvents[eventName] then
+      addon._unsupportedEvents[eventName] = tostring(err or "unsupported")
+      addon:Print("Skipping unsupported event: " .. tostring(eventName))
+    end
+    return false
+  end
   
   for eventName in pairs(addon._registeredEvents) do
     if not (addon.EventsToRegister and addon.EventsToRegister[eventName]) and not keep[eventName] then
@@ -1696,13 +1769,11 @@ function addon:RebuildAndRegister()
   end
   
   for eventName in pairs(addon.EventsToRegister or {}) do
-    frame:RegisterEvent(eventName)
-    addon._registeredEvents[eventName] = true
+    RegisterEventSafe(eventName)
   end
   
   for eventName in pairs(keep) do
-    frame:RegisterEvent(eventName)
-    addon._registeredEvents[eventName] = true
+    RegisterEventSafe(eventName)
   end
 end
 
@@ -1788,91 +1859,8 @@ function addon:HandleEvent(eventName, ...)
     return
   end
 
-  local bucket = addon.TriggersByEvent and addon.TriggersByEvent[eventName]
-  if not bucket then return end
-
   local args = {}
 
-  if eventName == "UNIT_SPELLCAST_SUCCEEDED" then
-    local unit, _, spellID = ...
-    if unit ~= "player" then return end
-    if type(spellID) ~= "number" then return end
-
-    if db.onlyLearnedSpells then
-      if not addon:IsSpellKnownByPlayer(spellID) then
-        return
-      end
-    end
-
-    args.unit = unit
-    args.spellID = spellID
-    local ctx = addon:MakeContext(spellID)
-
-    local listForSpell = bucket.bySpellID and bucket.bySpellID[spellID]
-    if listForSpell then
-      for _, trig in ipairs(listForSpell) do
-        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-          addon:FireTrigger(trig, ctx)
-        end
-      end
-    end
-
-    for _, trig in ipairs(bucket.list or {}) do
-      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-        addon:FireTrigger(trig, ctx)
-      end
-    end
-
-    return
-  end
-  
-  -- Achievement earned event
-  if eventName == "ACHIEVEMENT_EARNED" then
-    local achievementID = ...
-    if achievementID then
-      local achievementID, name, points, completed, month, day, year, description, flags, icon, rewardText = GetAchievementInfo(achievementID)
-      local extraData = {
-        achievement = name or ("Achievement #" .. tostring(achievementID)),
-        achievementID = tostring(achievementID),
-        achievementPoints = tostring(points or 0),
-      }
-      local ctx = addon:MakeContext(nil, extraData)
-      
-      for _, trig in ipairs(bucket.list or {}) do
-        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-          addon:FireTrigger(trig, ctx)
-        end
-      end
-    end
-    return
-  end
-  
-  -- Player level up event
-  if eventName == "PLAYER_LEVEL_UP" then
-    local newLevel = ...
-    local extraData = {
-      level = tostring(newLevel or UnitLevel("player")),
-      newLevel = tostring(newLevel or UnitLevel("player")),
-    }
-    local ctx = addon:MakeContext(nil, extraData)
-    
-    for _, trig in ipairs(bucket.list or {}) do
-      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
-        addon:FireTrigger(trig, ctx)
-      end
-    end
-    return
-  end
-  
-  -- Loot event (for epic/legendary drops)
-  if eventName == "CHAT_MSG_LOOT" or eventName == "LOOT_READY" then
-    local message = ...
-    if type(message) == "string" then
-      addon:ProcessLootMessage(message, eventName, 0)
-    end
-    return
-  end
-  
   -- Combat Log Event (for crits, dodges, parries, interrupts, etc.)
   if eventName == "COMBAT_LOG_EVENT_UNFILTERED" then
     -- Reuse a single table for combat log event info to avoid per-event allocations
@@ -1951,13 +1939,29 @@ function addon:HandleEvent(eventName, ...)
 
     -- If we found a combat event to process, fire triggers for it
     if triggerEventName then
-      local bucket = addon.TriggersByEvent and addon.TriggersByEvent[triggerEventName]
-      if bucket then
+      local triggerBucket = addon.TriggersByEvent and addon.TriggersByEvent[triggerEventName]
+      if triggerBucket then
         extraData.target = destName or "enemy"
         local ctx = addon:MakeContext(spellId, extraData)
+        local matchArgs = {}
+        if type(spellId) == "number" then
+          matchArgs.spellID = spellId
+        end
 
-        for _, trig in ipairs(bucket.list or {}) do
-          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, triggerEventName, args) then
+        local listForSpell = (type(spellId) == "number")
+          and triggerBucket.bySpellID
+          and triggerBucket.bySpellID[spellId]
+          or nil
+        if listForSpell then
+          for _, trig in ipairs(listForSpell) do
+            if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, triggerEventName, matchArgs) then
+              addon:FireTrigger(trig, ctx)
+            end
+          end
+        end
+
+        for _, trig in ipairs(triggerBucket.list or {}) do
+          if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, triggerEventName, matchArgs) then
             addon:FireTrigger(trig, ctx)
           end
         end
@@ -1967,6 +1971,96 @@ function addon:HandleEvent(eventName, ...)
     return
   end
 
+  local bucket = addon.TriggersByEvent and addon.TriggersByEvent[eventName]
+  if not bucket then return end
+
+  if eventName == "UNIT_SPELLCAST_SUCCEEDED" then
+    local unit, _, spellID = ...
+    if unit ~= "player" then return end
+    if type(spellID) ~= "number" then return end
+
+    if db.onlyLearnedSpells then
+      if not addon:IsSpellKnownByPlayer(spellID) then
+        return
+      end
+    end
+
+    args.unit = unit
+    args.spellID = spellID
+    local ctx = addon:MakeContext(spellID)
+
+    local listForSpell = bucket.bySpellID and bucket.bySpellID[spellID]
+    if listForSpell then
+      for _, trig in ipairs(listForSpell) do
+        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+          addon:FireTrigger(trig, ctx)
+        end
+      end
+    end
+
+    for _, trig in ipairs(bucket.list or {}) do
+      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+        addon:FireTrigger(trig, ctx)
+      end
+    end
+
+    return
+  end
+  
+  -- Achievement earned event
+  if eventName == "ACHIEVEMENT_EARNED" then
+    local achievementID = ...
+    if achievementID then
+      local name, points
+      local achievementApi = rawget(_G, "GetAchievementInfo")
+      if type(achievementApi) == "function" then
+        local resolvedID, resolvedName, resolvedPoints = achievementApi(achievementID)
+        achievementID = resolvedID or achievementID
+        name = resolvedName
+        points = resolvedPoints
+      end
+      local extraData = {
+        achievement = name or ("Achievement #" .. tostring(achievementID)),
+        achievementID = tostring(achievementID),
+        achievementPoints = tostring(points or 0),
+      }
+      local ctx = addon:MakeContext(nil, extraData)
+      
+      for _, trig in ipairs(bucket.list or {}) do
+        if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+          addon:FireTrigger(trig, ctx)
+        end
+      end
+    end
+    return
+  end
+  
+  -- Player level up event
+  if eventName == "PLAYER_LEVEL_UP" then
+    local newLevel = ...
+    local extraData = {
+      level = tostring(newLevel or UnitLevel("player")),
+      newLevel = tostring(newLevel or UnitLevel("player")),
+    }
+    local ctx = addon:MakeContext(nil, extraData)
+    
+    for _, trig in ipairs(bucket.list or {}) do
+      if addon:TriggerCooldownOk(trig) and addon:MatchesTrigger(trig, eventName, args) then
+        addon:FireTrigger(trig, ctx)
+      end
+    end
+    return
+  end
+  
+  -- Loot event (for epic/legendary drops)
+  if eventName == "CHAT_MSG_LOOT" or eventName == "LOOT_READY" then
+    local message = ...
+    if type(message) == "string" then
+      addon:ProcessLootMessage(message, eventName, 0)
+    end
+    return
+  end
+  
   -- Non-spell events (generic)
   local ctx = addon:MakeContext(nil)
 
@@ -2312,14 +2406,23 @@ SLASH_EMOTECONTROL1 = "/emotecontrol"
 SLASH_EMOTECONTROL2 = "/ec"
 SlashCmdList["EMOTECONTROL"] = HandleSlash
 
-SLASH_SPEAKINLITE1 = "/sl"
-SLASH_SPEAKINLITE2 = "/speakinlite"
-SlashCmdList["SPEAKINLITE"] = HandleSlash
+if SlashCmdList["SPEAKINLITE"] == nil then
+  SLASH_SPEAKINLITE1 = "/sl"
+  SLASH_SPEAKINLITE2 = "/speakinlite"
+  SlashCmdList["SPEAKINLITE"] = HandleSlash
+end
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then
-    EmoteControlDB = EmoteControlDB or SpeakinLiteDB or {}
-    SpeakinLiteDB = EmoteControlDB
+    if type(EmoteControlDB) ~= "table" then
+      local legacyDb = rawget(_G, "SpeakinLiteDB")
+      if type(legacyDb) == "table" then
+        EmoteControlDB = DeepCopy(legacyDb)
+        EmoteControlDB._migratedFromSpeakinLite = true
+      else
+        EmoteControlDB = {}
+      end
+    end
     db = EmoteControlDB
     addon.db = db
 
@@ -2341,7 +2444,6 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SetDefault(db, "repairThreshold", 0.2)
     SetDefault(db, "onboardingShown", false)
     SetDefault(db, "minimap", { hide = false, angle = 225 })
-    SetDefault(db, "version", addon.DB_VERSION)
 
     if type(db.packEnabled) ~= "table" then db.packEnabled = {} end
     if type(db.categoriesEnabled) ~= "table" then
@@ -2443,15 +2545,3 @@ end)
 
 -- Register core events
 frame:RegisterEvent("PLAYER_LOGIN")
-frame:RegisterEvent("PLAYER_DEAD")
-frame:RegisterEvent("PLAYER_ALIVE")
-frame:RegisterEvent("RESURRECT_REQUEST")
-frame:RegisterEvent("GROUP_JOINED")
-frame:RegisterEvent("GROUP_LEFT")
-frame:RegisterEvent("ZONE_CHANGED_NEW_AREA")
-frame:RegisterEvent("PLAYER_ENTERING_WORLD")
-frame:RegisterEvent("MAIL_SHOW")
-frame:RegisterEvent("BANKFRAME_OPENED")
-frame:RegisterEvent("MERCHANT_SHOW")
-frame:RegisterEvent("TAXIMAP_OPENED")
-frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")

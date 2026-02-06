@@ -5,7 +5,7 @@ if not EmoteControl or type(EmoteControl.RegisterPack) ~= "function" then
 end
 
 EmoteControl:RegisterPack({
-  id = "race_undead",
+  id = "race_scourge",
   name = "Undead Race Pack",
   defaults = { race = "SCOURGE" },  -- Undead is "SCOURGE" in the API
   triggers = {
