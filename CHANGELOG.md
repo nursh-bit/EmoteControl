@@ -1,5 +1,18 @@
 # Emote Control Changelog
 
+## Version 0.10.16 - Audit Hardening Release (2026-02-06)
+
+### Fixes & Improvements
+- Hardened SavedVariables migration and legacy DB import path (`race_undead` to `race_scourge` remap, safer version handling).
+- Fixed combat-log pseudo-event dispatch for crit/dodge/parry/interrupt triggers and spell-indexed matching.
+- Added safe dynamic event registration with unsupported-event guards.
+- Hardened import decoding with strict Base64 validation and clearer error paths.
+- Fixed editor behavior that could create empty trigger overrides on view/select.
+- Improved library and registry compatibility for trigger condition normalization and spell-trigger helpers.
+- Reduced inter-addon collision risk for builder dropdown frame names and legacy global alias behavior.
+- Updated release tooling and metadata (project ID, release script guards, syntax validation, Retail-only note).
+- Added `TESTING.md` with reproducible static and in-game validation matrix.
+
 ## Version 0.10.5 - QoL & Customization Update
 
 ### New Features

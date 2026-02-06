@@ -12,7 +12,7 @@ local addon = EmoteControl
 
 -- Metadata
 addon.ADDON_NAME = ADDON_NAME
-addon.VERSION = "0.10.5"
+addon.VERSION = "0.10.16"
 addon.DB_VERSION = 6
 
 addon.L = addon.L or {}
