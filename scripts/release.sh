@@ -32,8 +32,8 @@ command -v python3 >/dev/null || { echo "python3 is required in PATH." >&2; exit
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-perl -0pi -e "s/addon.VERSION = \"[^\"]+\"/addon.VERSION = \"$VERSION\"/" SpeakinLite/Core.lua
-perl -0pi -e "s/^## Version: .*/## Version: $VERSION/m" SpeakinLite/SpeakinLite.toc
+perl -0pi -e "s/addon.VERSION = \"[^\"]+\"/addon.VERSION = \"$VERSION\"/" EmoteControl/Core.lua
+perl -0pi -e "s/^## Version: .*/## Version: $VERSION/m" EmoteControl/EmoteControl.toc
 
 if [[ ! -f CHANGELOG.md ]]; then
   last_tag="$(git describe --tags --abbrev=0 2>/dev/null || true)"
@@ -60,7 +60,7 @@ gh release create "v$VERSION" --generate-notes
 
 zip_path="/tmp/EmoteControl-$VERSION.zip"
 rm -f "$zip_path"
-zip -r "$zip_path" SpeakinLite SpeakinLite_Pack_*
+zip -r "$zip_path" EmoteControl EmoteControl_Pack_*
 zip -T "$zip_path" >/dev/null
 unzip -l "$zip_path" >/dev/null
 

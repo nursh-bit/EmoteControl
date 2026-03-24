@@ -4,8 +4,8 @@
 ## Author: Nursh
 ## Version: 1.0.0
 ## SavedVariables: EmoteControlDB
-## X-Curse-Project-ID: 123456
-## X-Wago-ID: 1a2b3c4d5e6f7g
+## X-Curse-Project-ID: 1432552
+## X-Category: Chat & Communication
 
 Utils.lua
 Registry.lua

@@ -3,7 +3,6 @@
 -- Allows editing: enabled state, cooldown, channel, and message overrides
 
 EmoteControl = EmoteControl or {}
-EmoteControl = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 local frame
@@ -247,7 +246,7 @@ function addon:OpenEditor()
     divider:SetScript("OnMouseDown", function(self, button)
       if button == "LeftButton" then
         self._dragging = true
-        self._startX = GetCursorPosition()
+        self._startX = GetCursorPosition() / (self:GetEffectiveScale() or 1)
         self._startLeftWidth = leftPane:GetWidth()
       end
     end)
@@ -258,7 +257,7 @@ function addon:OpenEditor()
 
     divider:SetScript("OnUpdate", function(self)
       if self._dragging then
-        local currentX = GetCursorPosition()
+        local currentX = GetCursorPosition() / (self:GetEffectiveScale() or 1)
         local delta = currentX - self._startX
         local newWidth = math.max(280, math.min(480, self._startLeftWidth + delta))
         leftPane:SetSize(newWidth, 420)
@@ -340,7 +339,16 @@ function addon:OpenEditor()
 
     local enabled = CreateFrame("CheckButton", nil, rightPane, "UICheckButtonTemplate")
     enabled:SetPoint("TOPLEFT", detailsTitle, "BOTTOMLEFT", -2, -10)
-    enabled.Text:SetText("Enabled")
+    if enabled.Text then
+      enabled.Text:SetText("Enabled")
+    elseif enabled.text then
+      enabled.text:SetText("Enabled")
+    else
+      local text = enabled:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+      text:SetPoint("LEFT", enabled, "RIGHT", 0, 1)
+      text:SetText("Enabled")
+      enabled.Text = text
+    end
     frame.enabled = enabled
 
     local cdLabel = rightPane:CreateFontString(nil, "ARTWORK", "GameFontNormal")

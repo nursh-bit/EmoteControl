@@ -3,7 +3,6 @@
 -- This file is loaded first according to the .toc file
 
 EmoteControl = EmoteControl or {}
-EmoteControl = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 -- String utilities
@@ -61,7 +60,6 @@ end
 -- Database accessor
 function addon:GetDB()
   return self.db
-    or rawget(_G, "EmoteControlDB")
     or rawget(_G, "EmoteControlDB")
 end
 

@@ -45,8 +45,8 @@ resolvers.zone = function()
     return (GetZoneText and GetZoneText()) or "" 
 end
 resolvers.subzone = function() return (GetSubZoneText and GetSubZoneText()) or "" end
-resolvers.mapID = function() 
-    return (C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")) or "" 
+resolvers.mapID = function()
+    return (C_Map and C_Map.GetBestMapForUnit and C_Map.GetBestMapForUnit("player")) or 0
 end
 resolvers.mapid = resolvers.mapID
 resolvers.continent = function(ctx)
@@ -76,11 +76,12 @@ resolvers.role = function()
     end
     return ""
 end
-resolvers.ilvl = function() 
+resolvers.ilvl = function()
     if GetAverageItemLevel then
-        return tostring(select(2, GetAverageItemLevel()) or "") 
+        local _, equipped = GetAverageItemLevel()
+        return tostring(equipped or 0)
     end
-    return ""
+    return "0"
 end
 
 
@@ -202,9 +203,14 @@ local function GetAffixesCached(ctx)
     if C_MythicPlus and C_MythicPlus.GetCurrentAffixes then
          local affixes = C_MythicPlus.GetCurrentAffixes() or {}
          for _, aff in ipairs(affixes) do
-            if type(aff) == "table" and aff.name then 
-                ---@diagnostic disable-next-line: undefined-field
-                table.insert(names, aff.name) 
+            if type(aff) == "table" and aff.id then
+                local name
+                if C_ChallengeMode and C_ChallengeMode.GetAffixInfo then
+                    name = C_ChallengeMode.GetAffixInfo(aff.id)
+                end
+                if name then
+                    table.insert(names, name)
+                end
             end
          end
     end

@@ -3,7 +3,6 @@
 -- Simplifies trigger creation with form-based configuration
 
 EmoteControl = EmoteControl or {}
-EmoteControl = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 local builderFrame = nil
@@ -12,7 +11,7 @@ local currentTrigger = nil
 -- Trigger template
 local function NewTrigger()
   return {
-    id = "custom_" .. tostring(time()) .. "_" .. tostring(math.random(1000, 9999)),
+    id = "custom_" .. tostring(time()) .. "_" .. tostring(math.random(100000, 999999)),
     event = "UNIT_SPELLCAST_SUCCEEDED",
     cooldown = 10,
     category = "general",
@@ -236,7 +235,17 @@ function addon:CreateTriggerBuilder()
 
   local cbInCombat = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
   cbInCombat:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
-  cbInCombat.Text:SetText("In combat")
+  local function SetCheckText(cb, label)
+    if cb.Text then cb.Text:SetText(label)
+    elseif cb.text then cb.text:SetText(label)
+    else
+      local t = cb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+      t:SetPoint("LEFT", cb, "RIGHT", 0, 1)
+      t:SetText(label)
+      cb.Text = t
+    end
+  end
+  SetCheckText(cbInCombat, "In combat")
   cbInCombat:SetScript("OnClick", function(self)
     if currentTrigger then
       currentTrigger.conditions.inCombat = self:GetChecked() and true or nil
@@ -247,7 +256,7 @@ function addon:CreateTriggerBuilder()
 
   local cbInGroup = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
   cbInGroup:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
-  cbInGroup.Text:SetText("In group or raid")
+  SetCheckText(cbInGroup, "In group or raid")
   cbInGroup:SetScript("OnClick", function(self)
     if currentTrigger then
       currentTrigger.conditions.inGroup = self:GetChecked() and true or nil
@@ -302,7 +311,7 @@ function addon:CreateTriggerBuilder()
 
   local cbTarget = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
   cbTarget:SetPoint("TOPLEFT", frame, "TOPLEFT", 20, yOffset)
-  cbTarget.Text:SetText("Requires target")
+  SetCheckText(cbTarget, "Requires target")
   cbTarget:SetScript("OnClick", function(self)
     if currentTrigger then
       currentTrigger.conditions.requiresTarget = self:GetChecked() and true or nil
