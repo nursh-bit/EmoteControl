@@ -1,7 +1,7 @@
 ## Interface: 120000
 ## Title: EmoteControl
 ## Notes: Lightweight speech/announcement addon with modular phrase packs.
-## Author: Nursh
+## Author: nurse-bit
 ## Version: 1.0.0
 ## SavedVariables: EmoteControlDB
 ## X-Curse-Project-ID: 1432552

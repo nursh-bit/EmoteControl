@@ -1,7 +1,7 @@
 ## Interface: 120000
 ## Title: Emote Control - Death Knight Pack
 ## Notes: Death Knight spell triggers and lore flavored phrases.
-## Author: Nursh
+## Author: nurse-bit
 ## Version: 0.8.0
 ## Dependencies: EmoteControl
 ## LoadOnDemand: 1

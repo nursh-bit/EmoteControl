@@ -1,7 +1,7 @@
 ﻿## Interface: 120000
 ## Title: Emote Control - Warlock Pack
 ## Notes: Warlock spell phrases for EmoteControl.
-## Author: Nursh
+## Author: nurse-bit
 ## Version: 0.8.0
 ## LoadOnDemand: 1
 ## Dependencies: EmoteControl

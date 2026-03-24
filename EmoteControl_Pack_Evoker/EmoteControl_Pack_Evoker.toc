@@ -1,7 +1,7 @@
 ﻿## Interface: 120000
 ## Title: Emote Control - Evoker Pack
 ## Notes: Evoker-specific triggers and phrases for EmoteControl.
-## Author: Nursh
+## Author: nurse-bit
 ## Version: 0.8.0
 ## Dependencies: EmoteControl
 ## LoadOnDemand: 1
