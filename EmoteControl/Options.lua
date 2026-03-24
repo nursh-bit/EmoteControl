@@ -3,7 +3,6 @@
 -- Shortcuts available via /sl options, /sl packs, /sl editor
 
 EmoteControl = EmoteControl or {}
-EmoteControl = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 -- Helper function to create and configure font strings with common patterns
@@ -58,9 +57,10 @@ local function MakeSlider(parent, name, anchor, label, minVal, maxVal, step)
   s:SetObeyStepOnDrag(true)
   s:SetWidth(280)
 
-  _G[name .. "Text"]:SetText(label)
-  _G[name .. "Low"]:SetText(tostring(minVal))
-  _G[name .. "High"]:SetText(tostring(maxVal))
+  if _G[name .. "Text"] then _G[name .. "Text"]:SetText(label) end
+  if _G[name .. "Low"] then _G[name .. "Low"]:SetText(tostring(minVal)) end
+  if _G[name .. "High"] then _G[name .. "High"]:SetText(tostring(maxVal)) end
+  s._label = label
   return s
 end
 
@@ -336,14 +336,14 @@ local function BuildMainPanel()
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     local v = addon:ClampNumber(tonumber(value) or 6, 0, 60)
     theDb.globalCooldown = v
-    _G["EmoteControl_SL_CooldownText"]:SetText("Global cooldown (seconds): " .. v)
+    if _G["EmoteControl_SL_CooldownText"] then _G["EmoteControl_SL_CooldownText"]:SetText("Global cooldown (seconds): " .. v) end
   end)
 
   sMaxPerMin:SetScript("OnValueChanged", function(self, value)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     local v = addon:ClampNumber(tonumber(value) or 12, 0, 60)
     theDb.maxPerMinute = v
-    _G["EmoteControl_SL_MaxPerMinText"]:SetText("Max messages per minute: " .. v)
+    if _G["EmoteControl_SL_MaxPerMinText"] then _G["EmoteControl_SL_MaxPerMinText"]:SetText("Max messages per minute: " .. v) end
   end)
 
   cbAdaptive:SetScript("OnClick", function(self)
@@ -355,7 +355,7 @@ local function BuildMainPanel()
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
     local v = addon:ClampNumber(tonumber(value) or 2, 1, 5)
     theDb.adaptiveCooldownMax = v
-    _G["EmoteControl_SL_AdaptiveMaxText"]:SetText("Adaptive cooldown max multiplier: " .. v)
+    if _G["EmoteControl_SL_AdaptiveMaxText"] then _G["EmoteControl_SL_AdaptiveMaxText"]:SetText("Adaptive cooldown max multiplier: " .. v) end
   end)
 
   btnPacks:SetScript("OnClick", function()
@@ -489,7 +489,12 @@ local function BuildPacksPanel()
   end
 
   panel:SetScript("OnShow", Refresh)
-  searchBox:SetScript("OnTextChanged", Refresh)
+  local debounceTimer
+  searchBox:SetScript("OnTextChanged", function()
+    if debounceTimer then debounceTimer:Cancel() end
+    debounceTimer = C_Timer and C_Timer.NewTimer(0.15, Refresh) or nil
+    if not debounceTimer then Refresh() end
+  end)
   return panel
 end
 

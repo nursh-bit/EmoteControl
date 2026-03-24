@@ -3,7 +3,6 @@
 -- Uses Base64 encoding for compact configuration strings
 
 EmoteControl = EmoteControl or {}
-EmoteControl = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 -- Base64 encoding/decoding (simple implementation)
@@ -327,12 +326,34 @@ function addon:ExportTrigger(triggerId)
   return "SL1:" .. encoded
 end
 
+-- Maximum import string size (512KB)
+local MAX_IMPORT_SIZE = 512 * 1024
+-- Maximum trigger ID length
+local MAX_ID_LENGTH = 256
+
+-- Validate an imported override table has expected structure
+local function ValidateOverride(data)
+  if type(data) ~= "table" then return false end
+  for k, v in pairs(data) do
+    if type(k) ~= "string" then return false end
+    local vt = type(v)
+    if vt ~= "string" and vt ~= "number" and vt ~= "boolean" and vt ~= "table" then
+      return false
+    end
+  end
+  return true
+end
+
 -- Import trigger override
 function addon:ImportTrigger(importString)
   if type(importString) ~= "string" then
     return false, "Invalid import string"
   end
-  
+
+  if #importString > MAX_IMPORT_SIZE then
+    return false, "Import string too large (max 512KB)"
+  end
+
   -- Check prefix
   if not importString:match("^SL1:") then
     return false, "Invalid format (missing SL1: prefix)"
@@ -354,22 +375,26 @@ function addon:ImportTrigger(importString)
     return false, "Invalid trigger id"
   end
 
-  if type(data.data) ~= "table" then
-    return false, "Invalid trigger data"
+  if #data.id > MAX_ID_LENGTH then
+    return false, "Trigger ID too long"
   end
-  
+
+  if not ValidateOverride(data.data) then
+    return false, "Invalid trigger data structure"
+  end
+
   local db = addon:GetDB()
   if not db then
     return false, "No database found"
   end
-  
+
   if type(db.triggerOverrides) ~= "table" then
     db.triggerOverrides = {}
   end
-  
+
   -- Import the trigger
   db.triggerOverrides[data.id] = data.data
-  
+
   return true, "Imported trigger: " .. tostring(data.id)
 end
 
@@ -403,7 +428,11 @@ function addon:ImportAllTriggers(importString, merge)
   if type(importString) ~= "string" then
     return false, "Invalid import string"
   end
-  
+
+  if #importString > MAX_IMPORT_SIZE then
+    return false, "Import string too large (max 512KB)"
+  end
+
   if not importString:match("^SL1:") then
     return false, "Invalid format (missing SL1: prefix)"
   end
@@ -437,7 +466,7 @@ function addon:ImportAllTriggers(importString, merge)
   if merge then
     -- Merge mode: only add new triggers
     for id, override in pairs(data.data) do
-      if not db.triggerOverrides[id] and type(override) == "table" then
+      if type(id) == "string" and #id <= MAX_ID_LENGTH and not db.triggerOverrides[id] and ValidateOverride(override) then
         db.triggerOverrides[id] = override
         count = count + 1
       end
@@ -446,7 +475,7 @@ function addon:ImportAllTriggers(importString, merge)
     -- Replace mode: overwrite all
     db.triggerOverrides = {}
     for id, override in pairs(data.data) do
-      if type(override) == "table" then
+      if type(id) == "string" and #id <= MAX_ID_LENGTH and ValidateOverride(override) then
         db.triggerOverrides[id] = override
         count = count + 1
       end

@@ -291,10 +291,15 @@ local function GetRotationFloorSeconds()
 end
 
 -- Remove sent times older than 60 seconds using more efficient shifting
+local lastPruneTime = 0
 local function PruneSentTimes(now)
+  -- Skip if we already pruned within the last second
+  if (now - lastPruneTime) < 1 then return end
+  lastPruneTime = now
+
   local t = addon._sentTimes
   if type(t) ~= "table" then return end
-  
+
   -- Find the first non-expired entry index
   local writeIdx = 1
   for readIdx = 1, #t do
@@ -305,7 +310,7 @@ local function PruneSentTimes(now)
       writeIdx = writeIdx + 1
     end
   end
-  
+
   -- Clear remaining entries
   for i = writeIdx, #t do
     t[i] = nil
@@ -1282,7 +1287,7 @@ function addon:MatchesTrigger(trig, eventName, args, state)
   return true
 end
 
-local PACK_PREFIXES = {"EmoteControl_Pack_", "EmoteControl_Pack_"}
+local PACK_PREFIXES = {"EmoteControl_Pack_"}
 
 -- Note: LoadAddOn is completely protected in modern WoW and cannot be called
 -- after the initial addon loading phase. Packs must be enabled via the
@@ -1372,13 +1377,13 @@ function addon:LoadPacksForPlayer()
     local name = Addons_GetInfo(i)
     if type(name) == "string" and HasPackPrefix(name) then
       local packType = addon:SafeLower(
-        Addons_GetMeta(name, "X-EmoteControl-PackType") or Addons_GetMeta(name, "X-EmoteControl-PackType")
+        Addons_GetMeta(name, "X-EmoteControl-PackType")
       )
       local classTag = addon:SafeLower(
-        Addons_GetMeta(name, "X-EmoteControl-Class") or Addons_GetMeta(name, "X-EmoteControl-Class")
+        Addons_GetMeta(name, "X-EmoteControl-Class")
       )
       local raceTag = addon:SafeLower(
-        Addons_GetMeta(name, "X-EmoteControl-Race") or Addons_GetMeta(name, "X-EmoteControl-Race")
+        Addons_GetMeta(name, "X-EmoteControl-Race")
       )
 
       -- Determine if we should load this pack
@@ -1456,13 +1461,13 @@ function addon:GetAvailablePackAddOns()
     local name, title, notes, loadable, reason, security = Addons_GetInfo(i)
     if type(name) == "string" and HasPackPrefix(name) then
       local packType = addon:SafeLower(
-        Addons_GetMeta(name, "X-EmoteControl-PackType") or Addons_GetMeta(name, "X-EmoteControl-PackType")
+        Addons_GetMeta(name, "X-EmoteControl-PackType")
       )
       local classTag = addon:SafeLower(
-        Addons_GetMeta(name, "X-EmoteControl-Class") or Addons_GetMeta(name, "X-EmoteControl-Class")
+        Addons_GetMeta(name, "X-EmoteControl-Class")
       )
       local raceTag = addon:SafeLower(
-        Addons_GetMeta(name, "X-EmoteControl-Race") or Addons_GetMeta(name, "X-EmoteControl-Race")
+        Addons_GetMeta(name, "X-EmoteControl-Race")
       )
       local packId = addon:SafeLower(
         Addons_GetMeta(name, "X-EmoteControl-PackId") or Addons_GetMeta(name, "X-EmoteControl-PackId")
@@ -1840,7 +1845,7 @@ function addon:HandleEvent(eventName, ...)
     local _, subevent, _, sourceGUID, _, _, _, _, destName, _, _, param12, param13, param14, param15, param16, param17, param18, param19, param20, param21 = CombatLogGetCurrentEventInfo()
 
     -- Only process events where player is the source
-    if sourceGUID ~= UnitGUID("player") then
+    if sourceGUID ~= addon._playerGUID then
       return
     end
 
@@ -2285,8 +2290,7 @@ addon.RegisterSlashCommands = RegisterSlashCommands
 
 frame:SetScript("OnEvent", function(_, eventName, ...)
   if eventName == "PLAYER_LOGIN" then
-    EmoteControlDB = EmoteControlDB or EmoteControlDB or {}
-    EmoteControlDB = EmoteControlDB
+    EmoteControlDB = EmoteControlDB or {}
     db = EmoteControlDB
     addon.db = db
 
@@ -2309,7 +2313,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
     SetDefault(db, "onboardingShown", false)
     SetDefault(db, "minimap", { hide = false, angle = 225 })
     SetDefault(db, "version", addon.DB_VERSION)
-    SetDefault(db, "disableSlashCommands", true)
+    SetDefault(db, "disableSlashCommands", false)
 
     if type(db.packEnabled) ~= "table" then db.packEnabled = {} end
     if type(db.categoriesEnabled) ~= "table" then
@@ -2342,9 +2346,12 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
       }
     end
     
-    -- Reset session stats on login
-    db.stats.session = {}
-    db.stats.sessionMessages = 0
+    -- Session stats are transient; keep them out of SavedVariables
+    addon._sessionStats = {}
+    addon._sessionMessages = 0
+
+    -- Cache player GUID for combat log hot path
+    addon._playerGUID = UnitGUID("player")
     
     -- Auto-enable class and race packs on first login
     if db.firstLogin == nil then

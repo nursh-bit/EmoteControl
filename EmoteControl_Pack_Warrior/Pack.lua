@@ -16,6 +16,13 @@ EmoteControl:RegisterPack({
       cooldown = 45,
       category = "flavor",
       channel = "EMOTE",
+      messages = {
+        "roars into battle, weapon raised high.",
+        "charges forward with unbridled fury.",
+        "enters combat, ready to break things.",
+        "grips their weapon, warrior rage awakening.",
+        "prepares for glorious combat.",
+      },
       messagesByMood = {
         default = {
           "roars into battle, weapon raised high.",

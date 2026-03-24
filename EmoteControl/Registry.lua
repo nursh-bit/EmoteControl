@@ -3,7 +3,6 @@
 -- Packs are separate LoadOnDemand addons that call EmoteControl:RegisterPack({...}).
 
 EmoteControl = EmoteControl or {}
-EmoteControl = EmoteControl  -- Backward compatibility alias
 local addon = EmoteControl
 
 -- Pack and trigger data structures
@@ -35,7 +34,7 @@ function addon:IsPackEnabled(packId)
     return addon:GetPackEnabled(packId)
   end
   if type(packId) ~= "string" or packId == "" then return true end
-  local theDb = rawget(_G, "EmoteControlDB") or rawget(_G, "EmoteControlDB")
+  local theDb = rawget(_G, "EmoteControlDB")
   if type(theDb) ~= "table" then return true end
   local pe = theDb.packEnabled
   if type(pe) ~= "table" then return true end
@@ -193,6 +192,11 @@ function addon:BuildTriggerIndex()
       local defaultCond = DefaultsToConditions(defaults)
 
       for idx, trig in ipairs(pack.triggers or {}) do
+        if type(trig) == "table" and type(trig.event) == "string" and (not trig.messages or type(trig.messages) ~= "table" or #trig.messages == 0) then
+          if addon.Print and type(addon.Print) == "function" then
+            addon:Print("|cffff9900Warning:|r Pack '" .. packId .. "' trigger #" .. idx .. " (" .. tostring(trig.id or trig.event) .. ") has no messages; skipping.")
+          end
+        end
         if type(trig) == "table" and type(trig.event) == "string" and type(trig.messages) == "table" and #trig.messages > 0 then
           local t = addon:ShallowCopy(trig)
 

@@ -39,16 +39,18 @@ end
 function lib:CreateSpellTrigger(spellID, messages, options)
   local trigger = {
     event = "UNIT_SPELLCAST_SUCCEEDED",
-    spellID = spellID,
     messages = messages or {},
+    conditions = {
+      spellID = spellID,
+    },
   }
-  
+
   if type(options) == "table" then
     for k, v in pairs(options) do
       trigger[k] = v
     end
   end
-  
+
   return trigger
 end
 
