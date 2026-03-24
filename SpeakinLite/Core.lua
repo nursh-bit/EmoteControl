@@ -8,7 +8,7 @@ SpeakinLite = EmoteControl
 local addon = EmoteControl
 
 addon.VERSION = "0.9.5"
-addon.DB_VERSION = 2
+addon.DB_VERSION = 3
 
 local frame = CreateFrame("Frame")
 
@@ -30,15 +30,15 @@ function addon:ApplyRecommendedDefaults(db)
   if type(db) ~= "table" then return end
   db.enabled = true
   db.channel = "EMOTE"
-  db.fallbackToSelf = true
+  db.fallbackToEmote = true
   db.globalCooldown = 6
   db.rotationProtection = "MEDIUM"
-  db.maxPerMinute = 8
+  db.maxPerMinute = 12
   db.repairThreshold = 0.2
   db.enableSpellTriggers = true
   db.enableNonSpellTriggers = true
   db.onlyLearnedSpells = true
-  db.enableCombatLogTriggers = false
+  db.enableCombatLogTriggers = true
   db.enableLootTriggers = true
   db.enableAchievementTriggers = true
   db.enableLevelUpTriggers = true
@@ -59,6 +59,16 @@ function addon:ApplyMigrations(db)
     SetDefault(db, "enableLevelUpTriggers", true)
     SetDefault(db, "repairThreshold", 0.2)
     v = 2
+  end
+
+  if v < 3 then
+    -- Rename fallbackToSelf → fallbackToEmote (the fallback is to EMOTE, not to self)
+    if db.fallbackToSelf ~= nil and db.fallbackToEmote == nil then
+      db.fallbackToEmote = db.fallbackToSelf
+    end
+    db.fallbackToSelf = nil
+    SetDefault(db, "fallbackToEmote", true)
+    v = 3
   end
 
   db.version = v
@@ -187,7 +197,7 @@ function addon:Output(msg, channelOverride)
   end
 
   local inInstance = IsInInstance()
-  if not inInstance and IsOutdoorRestrictedChat(channel) and (not db or db.fallbackToSelf ~= false) then
+  if not inInstance and IsOutdoorRestrictedChat(channel) and (not db or db.fallbackToEmote ~= false) then
     -- Fallback to EMOTE instead of SELF when SAY/YELL is blocked outdoors
     channel = "EMOTE"
   end
@@ -1486,7 +1496,7 @@ local function HandleSlash(msg)
     addon:Print("Version " .. addon.VERSION)
     addon:Print("Enabled: " .. tostring(db and db.enabled ~= false))
     addon:Print("Channel: " .. tostring(db and db.channel))
-    addon:Print("Fallback to Self: " .. tostring(db and db.fallbackToSelf))
+    addon:Print("Fallback to Emote: " .. tostring(db and db.fallbackToEmote))
     addon:Print("Spell triggers: " .. tostring(db and db.enableSpellTriggers))
     addon:Print("Non-spell triggers: " .. tostring(db and db.enableNonSpellTriggers))
     addon:Print("Combat log triggers: " .. tostring(db and db.enableCombatLogTriggers))
@@ -1652,7 +1662,7 @@ frame:SetScript("OnEvent", function(_, eventName, ...)
 
     SetDefault(db, "enabled", true)
     SetDefault(db, "channel", "EMOTE")
-    SetDefault(db, "fallbackToSelf", true)
+    SetDefault(db, "fallbackToEmote", true)
     SetDefault(db, "globalCooldown", 6)
     SetDefault(db, "rotationProtection", "MEDIUM")
     SetDefault(db, "enableSpellTriggers", true)

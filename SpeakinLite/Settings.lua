@@ -236,7 +236,7 @@ function addon:CreateSettingsPanel()
   y = y - 28
   local cbFallback = CreateCheckbox(content, "If SAY/YELL blocked outdoors, use EMOTE instead", 16, y, function(v)
     local db = addon:GetDB() or {}
-    db.fallbackToSelf = v
+    db.fallbackToEmote = v
     EmoteControlDB = db
     SpeakinLiteDB = EmoteControlDB
   end)
@@ -362,7 +362,7 @@ function addon:CreateSettingsPanel()
     cbAchievement:SetChecked(db.enableAchievementTriggers ~= false)
     cbLevelUp:SetChecked(db.enableLevelUpTriggers ~= false)
     cbKnown:SetChecked(db.onlyLearnedSpells ~= false)
-    cbFallback:SetChecked(db.fallbackToSelf ~= false)
+    cbFallback:SetChecked(db.fallbackToEmote ~= false)
     SetChannel((type(db.channel) == "string" and string.upper(db.channel)) or "SELF")
     slider:SetValue(tonumber(db.globalCooldown) or 6)
     SetSliderLabel(slider, tonumber(db.globalCooldown) or 6)

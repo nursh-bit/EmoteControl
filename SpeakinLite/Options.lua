@@ -31,7 +31,16 @@ end
 local function MakeCheckbox(parent, name, anchor, label, tooltip)
   local cb = CreateFrame("CheckButton", name, parent, "InterfaceOptionsCheckButtonTemplate")
   cb:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -8)
-  cb.Text:SetText(label)
+  if cb.Text then
+    cb.Text:SetText(label)
+  elseif cb.text then
+    cb.text:SetText(label)
+  else
+    local text = cb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    text:SetPoint("LEFT", cb, "RIGHT", 5, 0)
+    text:SetText(label)
+    cb.Text = text
+  end
   if tooltip and tooltip ~= "" then
     cb.tooltipText = label
     cb.tooltipRequirement = tooltip
@@ -133,7 +142,7 @@ local function BuildMainPanel()
     if type(theDb) ~= "table" then return end
 
     cbEnabled:SetChecked(theDb.enabled ~= false)
-    cbFallback:SetChecked(theDb.fallbackToSelf ~= false)
+    cbFallback:SetChecked(theDb.fallbackToEmote ~= false)
     cbSpell:SetChecked(theDb.enableSpellTriggers ~= false)
     cbNonSpell:SetChecked(theDb.enableNonSpellTriggers ~= false)
     cbOnlyLearned:SetChecked(theDb.onlyLearnedSpells ~= false)
@@ -169,7 +178,7 @@ local function BuildMainPanel()
 
   cbFallback:SetScript("OnClick", function(self)
     local theDb = addon:GetDB(); if type(theDb) ~= "table" then return end
-    theDb.fallbackToSelf = self:GetChecked() and true or false
+    theDb.fallbackToEmote = self:GetChecked() and true or false
   end)
 
   cbSpell:SetScript("OnClick", function(self)
