@@ -33,7 +33,16 @@ end
 local function MakeCheckbox(parent, name, anchor, label, tooltip)
   local cb = CreateFrame("CheckButton", name, parent, "InterfaceOptionsCheckButtonTemplate")
   cb:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -8)
-  cb.Text:SetText(label)
+  if cb.Text then
+    cb.Text:SetText(label)
+  elseif cb.text then
+    cb.text:SetText(label)
+  else
+    local text = cb:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+    text:SetPoint("LEFT", cb, "RIGHT", 0, 1)
+    text:SetText(label)
+    cb.Text = text
+  end
   if tooltip and tooltip ~= "" then
     cb.tooltipText = label
     cb.tooltipRequirement = tooltip
